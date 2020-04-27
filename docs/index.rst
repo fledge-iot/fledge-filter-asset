@@ -2,8 +2,8 @@
 .. |asset| image:: images/asset.jpg
 
 
-Fledge Asset Filter
-===================
+Asset Filter
+============
 
 The *fledge-filter-asset* is a filter that allows for assets to be included, excluded or renamed in a stream. It may be used either in *South* services or *North* tasks and is driven by a set of rules that define for each named asset what action should be taken.
 
