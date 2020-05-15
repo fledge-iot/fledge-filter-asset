@@ -138,7 +138,15 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			}
 			Logger::getLogger()->info("Parse asset filter config, default action for unmentioned asset names=%d", info->defaultAction.actn);
 		}
-		
+
+		// Check for "rules" main property
+		if (!document.HasMember("rules"))
+		{
+			Logger::getLogger()->error("Parse asset filter config, unable to parse "
+						   "the 'rules' top level property in '%s'",
+						   filter->getConfig().getValue("config").c_str());
+			return NULL;
+		}
 		Value &rules = document["rules"];
 		if (!rules.IsArray())
 		{
