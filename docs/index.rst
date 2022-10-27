@@ -80,7 +80,8 @@ A typical set of rules might be
 	           },
                    {
                         "asset_name": "lathe1004",
-                        "datapointmap": {
+                        "action": "datapointmap",
+                        "map": {
                                 "rpm": "motorSpeed",
                                 "X": "toolOffset",
                                 "depth": "cutDepth"
