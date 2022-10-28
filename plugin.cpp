@@ -55,12 +55,14 @@ typedef enum
 {
 	INCLUDE,
 	EXCLUDE,
-	RENAME 
+	RENAME,
+	DPMAP
 } action;
 
 struct AssetAction {
 	action actn;
 	string new_asset_name; // valid only in case of RENAME
+	map<string, string> dpmap;
 };
 
 typedef struct
@@ -169,6 +171,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			string asset_name = (*iter)["asset_name"].GetString();
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
+			map<string, string> dpmap;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -186,8 +189,23 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 					return NULL;
 				}
 			}
+			else if (actionStr == "datapointmap")
+			{
+				actn = action::DPMAP;
+				if (iter->HasMember("map"))
+				{
+					const Value& map = (*iter)["map"];
+					for (auto& mapit : map.GetObject())
+						dpmap.insert(pair<string, string>(mapit.name.GetString(), mapit.value.GetString()));
+				}
+				else
+				{
+					Logger::getLogger()->error("Parse asset filter config, map is not found in the DatapointMap entry: '%s'", filter->getConfig().getValue("config").c_str());
+					return NULL;
+				}
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name};
+			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
 		}
 	}
 	else
@@ -237,9 +255,11 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			assetAction = &(info->defaultAction);
 		}
 		else
+		{
 			assetAction = &((*info->assetFilterConfig)[(*elem)->getAssetName()]);
 			//Logger::getLogger()->info("Reading's asset_name=%s, matching map entry={%s, %d, %s}", 
 				//	(*elem)->getAssetName().c_str(), (*elem)->getAssetName().c_str(), assetAction->actn, assetAction->new_asset_name.c_str());
+		}
 
 		if(assetAction->actn == action::INCLUDE)
 		{
@@ -258,6 +278,22 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			newReadings.push_back(newRdng);
 			AssetTracker::getAssetTracker()->addAssetTrackingTuple(info->configCatName, (*elem)->getAssetName(), string("Filter"));
 			AssetTracker::getAssetTracker()->addAssetTrackingTuple(info->configCatName, assetAction->new_asset_name, string("Filter"));
+		}
+		else if (assetAction->actn == action::DPMAP)
+		{
+			Reading *newReading = new Reading(**elem); // copy original Reading object
+			// Iterate over the datapoints and change the names
+			vector<Datapoint *> dps = newReading->getReadingData();
+			for (auto it = dps.begin(); it != dps.end(); ++it)
+			{
+				Datapoint *dp = *it;
+				auto i = assetAction->dpmap.find(dp->getName());
+				if (i != assetAction->dpmap.end())
+				{
+					dp->setName(i->second);
+				}
+			}
+			newReadings.push_back(newReading);
 		}
 	}
 
@@ -352,6 +388,21 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				{
 					Logger::getLogger()->error("Parse asset filter config, new_asset_name is not found in the RENAME entry: '%s'", filter->getConfig().getValue("config").c_str());
 					return;
+				}
+			}
+			else if (actionStr == "datapointmap")
+			{
+				actn = action::DPMAP;
+				if (iter->HasMember("map"))
+				{
+					const Value& map = (*iter)["map"];
+					for (auto& mapit : map.GetObject())
+						dpmap.insert(pair<string, string>(mapit.name.GetString(), mapit.value.GetString()));
+				}
+				else
+				{
+					Logger::getLogger()->error("Parse asset filter config, map is not found in the DatapointMap entry: '%s'", filter->getConfig().getValue("config").c_str());
+					return NULL;
 				}
 			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
