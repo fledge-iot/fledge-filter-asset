@@ -264,20 +264,32 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		if(assetAction->actn == action::INCLUDE)
 		{
 			newReadings.push_back(new Reading(**elem)); // copy original Reading object
-			AssetTracker::getAssetTracker()->addAssetTrackingTuple(info->configCatName, (*elem)->getAssetName(), string("Filter"));
+			AssetTracker *tracker = AssetTracker::getAssetTracker();
+			if (tracker)
+			{
+				tracker->addAssetTrackingTuple(info->configCatName, (*elem)->getAssetName(), string("Filter"));
+			}
 		}
 		else if(assetAction->actn == action::EXCLUDE)
 		{
 			// no need to free memory allocated for original reading object: done in ReadingSet destructor
-			AssetTracker::getAssetTracker()->addAssetTrackingTuple(info->configCatName, (*elem)->getAssetName(), string("Filter"));
+			AssetTracker *tracker = AssetTracker::getAssetTracker();
+			if (tracker)
+			{
+				tracker->addAssetTrackingTuple(info->configCatName, (*elem)->getAssetName(), string("Filter"));
+			}
 		}
 		else if(assetAction->actn == action::RENAME)
 		{
 			Reading *newRdng = new Reading(**elem); // copy original Reading object
 			newRdng->setAssetName(assetAction->new_asset_name);
 			newReadings.push_back(newRdng);
-			AssetTracker::getAssetTracker()->addAssetTrackingTuple(info->configCatName, (*elem)->getAssetName(), string("Filter"));
-			AssetTracker::getAssetTracker()->addAssetTrackingTuple(info->configCatName, assetAction->new_asset_name, string("Filter"));
+			AssetTracker *tracker = AssetTracker::getAssetTracker();
+			if (tracker)
+			{
+				tracker->addAssetTrackingTuple(info->configCatName, (*elem)->getAssetName(), string("Filter"));
+				tracker->addAssetTrackingTuple(info->configCatName, assetAction->new_asset_name, string("Filter"));
+			}
 		}
 		else if (assetAction->actn == action::DPMAP)
 		{
@@ -373,6 +385,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			string asset_name = (*iter)["asset_name"].GetString();
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
+			map<string, string> dpmap;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -402,11 +415,11 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				else
 				{
 					Logger::getLogger()->error("Parse asset filter config, map is not found in the DatapointMap entry: '%s'", filter->getConfig().getValue("config").c_str());
-					return NULL;
+					return;
 				}
 			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name};
+			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
 		}
 		auto tmp = new std::map<std::string, AssetAction>;
 		tmp = info->assetFilterConfig;
