@@ -36,6 +36,8 @@ The asset rules are an array of JSON objects which define the asset name to whic
 
   - **rename**: Change the name of the asset. In this case a third property is included in the rule object, "new_asset_name"
 
+  - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
+
 
 In addition a *defaultAction* may be included, however this is limited to *include* and *exclude*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
 
@@ -75,7 +77,16 @@ A typical set of rules might be
                    {
 			"asset_name": "Random7",
 			"action": "include"
-	           }
+	           },
+                   {
+                        "asset_name": "lathe1004",
+                        "action": "datapointmap",
+                        "map": {
+                                "rpm": "motorSpeed",
+                                "X": "toolOffset",
+                                "depth": "cutDepth"
+                        }
+                   }
         ],
 	"defaultAction": "include"
   }
