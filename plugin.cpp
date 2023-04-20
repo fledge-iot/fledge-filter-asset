@@ -56,8 +56,8 @@ typedef enum
 	INCLUDE,
 	EXCLUDE,
 	RENAME,
-	DPMAP,
-	REMOVE
+	REMOVE,
+	DPMAP
 } action;
 
 struct AssetAction {
