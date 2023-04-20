@@ -327,7 +327,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		{
 			Reading *newReading = new Reading(**elem); // copy original Reading object
                         // Iterate over the datapoints and change the names
-                        vector<Datapoint *> dps = newReading->getReadingData();
+                        vector<Datapoint *>& dps = newReading->getReadingData();
 			bool dpFound = false;
 			bool typeFound = false;
 			string datapoint;
