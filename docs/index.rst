@@ -86,6 +86,16 @@ A typical set of rules might be
                                 "X": "toolOffset",
                                 "depth": "cutDepth"
                         }
+                   },
+                   {
+                        "asset_name": "Random6",
+                        "action": "remove",
+                        "datapoint": "sinusoid_7"
+                   },
+                   {
+                        "asset_name": "Random6",
+                        "action": "remove",
+                        "type": "FLOAT"
                    }
         ],
 	"defaultAction": "include"
