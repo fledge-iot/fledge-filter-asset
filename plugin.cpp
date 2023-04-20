@@ -56,13 +56,16 @@ typedef enum
 	INCLUDE,
 	EXCLUDE,
 	RENAME,
-	DPMAP
+	DPMAP,
+	REMOVE
 } action;
 
 struct AssetAction {
 	action actn;
 	string new_asset_name; // valid only in case of RENAME
 	map<string, string> dpmap;
+	string datapoint; // valid only in case of REMOVE
+	string type; // valid only in case of REMOVE
 };
 
 typedef struct
@@ -172,6 +175,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
 			map<string, string> dpmap;
+			string datapoint;
+			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -204,8 +209,19 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 					return NULL;
 				}
 			}
+			else if (actionStr == "remove")
+			{
+				actn = action::REMOVE;
+
+                                if (iter->HasMember("datapoint"))
+                                        datapoint = (*iter)["datapoint"].GetString();
+
+                                if (iter->HasMember("type"))
+                                        dpType = (*iter)["type"].GetString();
+
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
+			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
 		}
 	}
 	else
@@ -307,6 +323,47 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			}
 			newReadings.push_back(newReading);
 		}
+		else if (assetAction->actn == action::REMOVE)
+		{
+			Reading *newReading = new Reading(**elem); // copy original Reading object
+                        // Iterate over the datapoints and change the names
+                        vector<Datapoint *> dps = newReading->getReadingData();
+                        for (auto it = dps.begin(); it != dps.end(); )
+                        {
+                                Datapoint *dp = *it;
+                                string datapoint = assetAction->datapoint;
+				string type = assetAction->type;
+			//	Logger::getLogger()->debug("datapoint name = %s", dp->getName().c_str());
+				const DatapointValue dpv = dp->getData();
+                                        string dpvStr = dpv.getTypeStr();
+			//	Logger::getLogger()->debug("datapoint type = %s", dpvStr.c_str());
+                                if (!datapoint.empty())
+                                {
+                                	if (datapoint == dp->getName())
+					{
+						it = dps.erase(it);
+						Logger::getLogger()->debug("Removing datapoint with name %s", datapoint.c_str());
+					}
+					else
+						++it;
+                                }
+				else if (!type.empty())
+				{
+					const DatapointValue dpv = dp->getData();
+					string dpvStr = dpv.getTypeStr();
+					if (dpvStr == type)
+					{
+						it = dps.erase(it);
+						Logger::getLogger()->debug("Removing datapoint with type %s", type.c_str());
+					}
+					else
+						++it;
+				}
+				else
+					++it;
+                        }
+                        newReadings.push_back(newReading);
+		}
 	}
 
 	delete (ReadingSet *)readingSet;
@@ -386,6 +443,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
 			map<string, string> dpmap;
+			string datapoint;
+			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -418,8 +477,19 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 					return;
 				}
 			}
+			else if(actionStr == "remove")
+			{
+				actn = action::REMOVE;
+
+				if (iter->HasMember("datapoint"))
+                                        datapoint = (*iter)["datapoint"].GetString();
+
+				if (iter->HasMember("type"))
+                                        dpType = (*iter)["type"].GetString();
+
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
+			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
 		}
 		auto tmp = new std::map<std::string, AssetAction>;
 		tmp = info->assetFilterConfig;
