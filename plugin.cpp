@@ -328,21 +328,24 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			Reading *newReading = new Reading(**elem); // copy original Reading object
                         // Iterate over the datapoints and change the names
                         vector<Datapoint *> dps = newReading->getReadingData();
+			bool dpFound = false;
+			bool typeFound = false;
+			string datapoint;
+			string type;
                         for (auto it = dps.begin(); it != dps.end(); )
                         {
                                 Datapoint *dp = *it;
-                                string datapoint = assetAction->datapoint;
-				string type = assetAction->type;
-			//	Logger::getLogger()->debug("datapoint name = %s", dp->getName().c_str());
+                                datapoint = assetAction->datapoint;
+				type = assetAction->type;
 				const DatapointValue dpv = dp->getData();
-                                        string dpvStr = dpv.getTypeStr();
-			//	Logger::getLogger()->debug("datapoint type = %s", dpvStr.c_str());
+                                string dpvStr = dpv.getTypeStr();
                                 if (!datapoint.empty())
                                 {
                                 	if (datapoint == dp->getName())
 					{
 						it = dps.erase(it);
 						Logger::getLogger()->debug("Removing datapoint with name %s", datapoint.c_str());
+						dpFound = true;
 					}
 					else
 						++it;
@@ -355,6 +358,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 					{
 						it = dps.erase(it);
 						Logger::getLogger()->debug("Removing datapoint with type %s", type.c_str());
+						typeFound = true;
 					}
 					else
 						++it;
@@ -362,6 +366,11 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 				else
 					++it;
                         }
+			if (!datapoint.empty() && !dpFound)
+				Logger::getLogger()->info("Datapoint with name %s not found for removal", datapoint.c_str());
+			if (!type.empty() && !typeFound)
+				Logger::getLogger()->info("Datapoint with type %s not found for removal", type.c_str());
+
                         newReadings.push_back(newReading);
 		}
 	}
