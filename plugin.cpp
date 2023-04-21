@@ -15,6 +15,7 @@
 #include <filter.h>
 #include <reading_set.h>
 #include <version.h>
+#include <algorithm>
 
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
@@ -352,6 +353,10 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
                                 }
 				else if (!type.empty())
 				{
+					transform(type.begin(), type.end(), type.begin(), ::toupper);
+					if (type == "FLOATING") type = "FLOAT";
+					if (type == "BUFFER") type = "DATABUFFER";
+
 					const DatapointValue dpv = dp->getData();
 					string dpvStr = dpv.getTypeStr();
 					if (dpvStr == type)
@@ -360,7 +365,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 						Logger::getLogger()->info("Removing datapoint with type %s", type.c_str());
 						typeFound = true;
 					}
-					else if (type == "number" || type == "NUMBER")
+					else if (type == "NUMBER")
                                         {
                                                 if (dpvStr == "float" || dpvStr == "integer" || dpvStr == "FLOAT" || dpvStr == "INTEGER")
                                                 {
@@ -371,7 +376,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 						else 
 							++it;
                                         }
-                                        else if (type == "non-numeric" || type == "NON-NUMERIC")
+                                        else if (type == "NON-NUMERIC")
                                         {
                                                 if (dpvStr != "float" && dpvStr != "integer" && dpvStr != "FLOAT" && dpvStr != "INTEGER")
                                                 {
