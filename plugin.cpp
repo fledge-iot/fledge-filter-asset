@@ -15,9 +15,14 @@
 #include <filter.h>
 #include <reading_set.h>
 #include <version.h>
+#include <algorithm>
+#include <set>
+#include <mutex>
 
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
+
+std::mutex g_mutex;
 
 #define DEFAULT_CONFIG "{\"plugin\" : { \"description\" : \"Asset filter plugin\", " \
                        		"\"type\" : \"string\", " \
@@ -56,6 +61,7 @@ typedef enum
 	INCLUDE,
 	EXCLUDE,
 	RENAME,
+	REMOVE,
 	DPMAP
 } action;
 
@@ -63,6 +69,8 @@ struct AssetAction {
 	action actn;
 	string new_asset_name; // valid only in case of RENAME
 	map<string, string> dpmap;
+	string datapoint; // valid only in case of REMOVE
+	string type; // valid only in case of REMOVE
 };
 
 typedef struct
@@ -101,6 +109,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			  OUTPUT_HANDLE *outHandle,
 			  OUTPUT_STREAM output)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = new FILTER_INFO;
 	info->handle = new FledgeFilter(FILTER_NAME, *config, outHandle, output);
 	FledgeFilter *filter = info->handle;
@@ -172,6 +182,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
 			map<string, string> dpmap;
+			string datapoint;
+			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -204,8 +216,27 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 					return NULL;
 				}
 			}
+			else if (actionStr == "remove")
+			{
+				actn = action::REMOVE;
+
+                                if (iter->HasMember("datapoint"))
+				{
+					if ((*iter)["datapoint"].IsString())
+					{
+                                        	datapoint = (*iter)["datapoint"].GetString();
+					}
+				}
+                                if (iter->HasMember("type"))
+				{
+					if ((*iter)["type"].IsString())
+					{
+                                        	dpType = (*iter)["type"].GetString();
+					}
+				}
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
+			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
 		}
 	}
 	else
@@ -226,6 +257,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 void plugin_ingest(PLUGIN_HANDLE *handle,
 		   READINGSET *readingSet)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = (FILTER_INFO *) handle;
 	FledgeFilter* filter = info->handle;
 	
@@ -241,6 +274,8 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 
 	// Just get all the readings in the readingset
 	const vector<Reading *>& readings = origReadingSet->getAllReadings();
+
+	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "NESTED", "ARRAY", "2D_ARRAY", "USER_ARRAY"};
 	
 	// Iterate the readings
 	for (vector<Reading *>::const_iterator elem = readings.begin();
@@ -307,6 +342,101 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			}
 			newReadings.push_back(newReading);
 		}
+		else if (assetAction->actn == action::REMOVE)
+		{
+			Reading *newReading = new Reading(**elem); // copy original Reading object
+                        // Iterate over the datapoints and change the names
+                        vector<Datapoint *>& dps = newReading->getReadingData();
+			bool dpFound = false;
+			bool typeFound = false;
+			string datapoint;
+			string type;
+                        for (auto it = dps.begin(); it != dps.end(); )
+                        {
+                                Datapoint *dp = *it;
+                                datapoint = assetAction->datapoint;
+				type = assetAction->type;
+				const DatapointValue dpv = dp->getData();
+                                string dpvStr = dpv.getTypeStr();
+                                if (!datapoint.empty())
+                                {
+                                	if (datapoint == dp->getName())
+					{
+						it = dps.erase(it);
+						Logger::getLogger()->info("Removing datapoint with name %s", datapoint.c_str());
+						dpFound = true;
+					}
+					else
+						++it;
+                                }
+				else if (!type.empty())
+				{
+					transform(type.begin(), type.end(), type.begin(), ::toupper);
+					if (type == "FLOATING") type = "FLOAT";
+					if (type == "BUFFER") type = "DATABUFFER";
+					if (type == "NESTED") type = "DP_DICT";
+					if (type == "2D_ARRAY") type = "2D_FLOAT_ARRAY";
+					if (type == "ARRAY") type = "FLOAT_ARRAY";
+
+					if (validDpTypes.find (type) == validDpTypes.end())
+					{
+						Logger::getLogger()->warn("Invalid Datapoint type %s", type.c_str());
+						break;
+					}
+					const DatapointValue dpv = dp->getData();
+					string dpvStr = dpv.getTypeStr();
+					if (dpvStr == type)
+					{
+						it = dps.erase(it);
+						Logger::getLogger()->info("Removing datapoint with type %s", type.c_str());
+						typeFound = true;
+					}
+					else if (type == "NUMBER")
+                                        {
+                                                if (dpvStr == "FLOAT" || dpvStr == "INTEGER")
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+						else 
+							++it;
+                                        }
+                                        else if (type == "NON-NUMERIC")
+                                        {
+                                                if (dpvStr != "FLOAT" && dpvStr != "INTEGER")
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+						else
+							++it;
+                                        }
+					else if (type == "USER_ARRAY")
+					{
+						if (dpvStr == "FLOAT_ARRAY" || dpvStr == "2D_FLOAT_ARRAY" )
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+                                                else
+                                                        ++it;
+					}
+					else
+						++it;
+				}
+				else
+					++it;
+                        }
+			if (!datapoint.empty() && !dpFound)
+				Logger::getLogger()->info("Datapoint with name %s not found for removal", datapoint.c_str());
+			if (!type.empty() && !typeFound)
+				Logger::getLogger()->info("Datapoint with type %s not found for removal", type.c_str());
+
+                        newReadings.push_back(newReading);
+		}
 	}
 
 	delete (ReadingSet *)readingSet;
@@ -323,6 +453,8 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
  */
 void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = (FILTER_INFO *) handle;
 	FledgeFilter* filter = info->handle;
 
@@ -386,6 +518,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
 			map<string, string> dpmap;
+			string datapoint;
+			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -418,8 +552,19 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 					return;
 				}
 			}
+			else if(actionStr == "remove")
+			{
+				actn = action::REMOVE;
+
+				if (iter->HasMember("datapoint"))
+                                        datapoint = (*iter)["datapoint"].GetString();
+
+				if (iter->HasMember("type"))
+                                        dpType = (*iter)["type"].GetString();
+
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
+			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
 		}
 		auto tmp = new std::map<std::string, AssetAction>;
 		tmp = info->assetFilterConfig;
