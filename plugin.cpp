@@ -17,9 +17,12 @@
 #include <version.h>
 #include <algorithm>
 #include <set>
+#include <mutex>
 
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
+
+std::mutex g_mutex;
 
 #define DEFAULT_CONFIG "{\"plugin\" : { \"description\" : \"Asset filter plugin\", " \
                        		"\"type\" : \"string\", " \
@@ -106,6 +109,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			  OUTPUT_HANDLE *outHandle,
 			  OUTPUT_STREAM output)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = new FILTER_INFO;
 	info->handle = new FledgeFilter(FILTER_NAME, *config, outHandle, output);
 	FledgeFilter *filter = info->handle;
@@ -216,11 +221,19 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				actn = action::REMOVE;
 
                                 if (iter->HasMember("datapoint"))
-                                        datapoint = (*iter)["datapoint"].GetString();
-
+				{
+					if ((*iter)["datapoint"].IsString())
+					{
+                                        	datapoint = (*iter)["datapoint"].GetString();
+					}
+				}
                                 if (iter->HasMember("type"))
-                                        dpType = (*iter)["type"].GetString();
-
+				{
+					if ((*iter)["type"].IsString())
+					{
+                                        	dpType = (*iter)["type"].GetString();
+					}
+				}
 			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
 			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
@@ -244,6 +257,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 void plugin_ingest(PLUGIN_HANDLE *handle,
 		   READINGSET *readingSet)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = (FILTER_INFO *) handle;
 	FledgeFilter* filter = info->handle;
 	
@@ -260,7 +275,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 	// Just get all the readings in the readingset
 	const vector<Reading *>& readings = origReadingSet->getAllReadings();
 
-	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC"};
+	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "NESTED", "ARRAY", "2D_ARRAY", "USER_ARRAY"};
 	
 	// Iterate the readings
 	for (vector<Reading *>::const_iterator elem = readings.begin();
@@ -359,6 +374,9 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 					transform(type.begin(), type.end(), type.begin(), ::toupper);
 					if (type == "FLOATING") type = "FLOAT";
 					if (type == "BUFFER") type = "DATABUFFER";
+					if (type == "NESTED") type = "DP_DICT";
+					if (type == "2D_ARRAY") type = "2D_FLOAT_ARRAY";
+					if (type == "ARRAY") type = "FLOAT_ARRAY";
 
 					if (validDpTypes.find (type) == validDpTypes.end())
 					{
@@ -375,7 +393,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 					}
 					else if (type == "NUMBER")
                                         {
-                                                if (dpvStr == "float" || dpvStr == "integer" || dpvStr == "FLOAT" || dpvStr == "INTEGER")
+                                                if (dpvStr == "FLOAT" || dpvStr == "INTEGER")
                                                 {
                                                         it = dps.erase(it);
                                                         Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
@@ -386,7 +404,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
                                         }
                                         else if (type == "NON-NUMERIC")
                                         {
-                                                if (dpvStr != "float" && dpvStr != "integer" && dpvStr != "FLOAT" && dpvStr != "INTEGER")
+                                                if (dpvStr != "FLOAT" && dpvStr != "INTEGER")
                                                 {
                                                         it = dps.erase(it);
                                                         Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
@@ -395,6 +413,17 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 						else
 							++it;
                                         }
+					else if (type == "USER_ARRAY")
+					{
+						if (dpvStr == "FLOAT_ARRAY" || dpvStr == "2D_FLOAT_ARRAY" )
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+                                                else
+                                                        ++it;
+					}
 					else
 						++it;
 				}
@@ -424,6 +453,8 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
  */
 void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = (FILTER_INFO *) handle;
 	FledgeFilter* filter = info->handle;
 
