@@ -360,6 +360,28 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 						Logger::getLogger()->info("Removing datapoint with type %s", type.c_str());
 						typeFound = true;
 					}
+					else if (type == "number" || type == "NUMBER")
+                                        {
+                                                if (dpvStr == "float" || dpvStr == "integer" || dpvStr == "FLOAT" || dpvStr == "INTEGER")
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+						else 
+							++it;
+                                        }
+                                        else if (type == "non-numeric" || type == "NON-NUMERIC")
+                                        {
+                                                if (dpvStr != "float" && dpvStr != "integer" && dpvStr != "FLOAT" && dpvStr != "INTEGER")
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+						else
+							++it;
+                                        }
 					else
 						++it;
 				}
