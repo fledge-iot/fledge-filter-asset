@@ -344,7 +344,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
                                 	if (datapoint == dp->getName())
 					{
 						it = dps.erase(it);
-						Logger::getLogger()->debug("Removing datapoint with name %s", datapoint.c_str());
+						Logger::getLogger()->info("Removing datapoint with name %s", datapoint.c_str());
 						dpFound = true;
 					}
 					else
@@ -357,7 +357,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 					if (dpvStr == type)
 					{
 						it = dps.erase(it);
-						Logger::getLogger()->debug("Removing datapoint with type %s", type.c_str());
+						Logger::getLogger()->info("Removing datapoint with type %s", type.c_str());
 						typeFound = true;
 					}
 					else
