@@ -16,6 +16,7 @@
 #include <reading_set.h>
 #include <version.h>
 #include <algorithm>
+#include <set>
 
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
@@ -258,6 +259,8 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 
 	// Just get all the readings in the readingset
 	const vector<Reading *>& readings = origReadingSet->getAllReadings();
+
+	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC"};
 	
 	// Iterate the readings
 	for (vector<Reading *>::const_iterator elem = readings.begin();
@@ -357,6 +360,11 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 					if (type == "FLOATING") type = "FLOAT";
 					if (type == "BUFFER") type = "DATABUFFER";
 
+					if (validDpTypes.find (type) == validDpTypes.end())
+					{
+						Logger::getLogger()->warn("Invalid Datapoint type %s", type.c_str());
+						break;
+					}
 					const DatapointValue dpv = dp->getData();
 					string dpvStr = dpv.getTypeStr();
 					if (dpvStr == type)
