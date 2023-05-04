@@ -37,6 +37,15 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
   - **rename**: Change the name of the asset. In this case a third property is included in the rule object, "new_asset_name"
 
   - **remove**: This action will be passed a datapoint name as an argument or a datapoint type. A datapoint with that name will be removed from the asset as it passed through the asset filter. If a type is passed then all data points of that type will be removed.
+ 
+  - **flatten**: This action will flatten nested datapoint structure to single level.
+
+Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_floor2", "pressure_floor3"
+..coe-block:: JSON
+  {
+      "pressure": {"floor1":30, "floor2":34, "floor3":36 }
+  }
+
 Supported data types  are 
 
   - **INTEGER**
@@ -59,14 +68,6 @@ Supported data types  are
   - **ARRAY** : removes FLOAT_ARRAY
   - **2D_ARRAY** : removes 2D_FLOAT_ARRAY  
   Datapoint types are case insensitive.
-
--- **flatten**: This action will flatten nested datapoint structure to single level. 
-
-Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_floor2", "pressure_floor3"
-..coe-block:: JSON
-  {
-      "pressure": {"floor1":30, "floor2":34, "floor3":36 }
-  }
 
   - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
 
