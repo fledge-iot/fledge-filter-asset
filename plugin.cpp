@@ -274,7 +274,7 @@ void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapo
 		string name = (*dpit)->getName();
 		DatapointValue &val = (*dpit)->getData();
 		
-		if (val.getType() == DatapointValue::T_DP_DICT || datapointValue.getType() == DatapointValue::T_DP_LIST)
+		if (val.getType() == DatapointValue::T_DP_DICT || val.getType() == DatapointValue::T_DP_LIST)
 		{
 			datapointName = datapointName + "_" + name;
 			flattenDatapoint(*dpit, datapointName, flattenDatapoints);
