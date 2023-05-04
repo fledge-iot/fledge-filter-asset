@@ -62,7 +62,8 @@ typedef enum
 	EXCLUDE,
 	RENAME,
 	REMOVE,
-	DPMAP
+	DPMAP,
+	FLATTEN	
 } action;
 
 struct AssetAction {
@@ -235,6 +236,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 					}
 				}
 			}
+			else if (actionStr == "flatten")
+			{
+				actn = action::FLATTEN;
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
 			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
 		}
@@ -246,6 +251,55 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 	}
 	
 	return (PLUGIN_HANDLE)info;
+}
+
+
+/**
+ * Flatten nested datapoint
+ *
+ * @param datapoint	datapoint to flatten
+ * @param assetName	assetname to which datapoint belongs
+ * @param newReadings	vector for newreadings of flatten datapoint
+ */
+void flattenDatapoint(Datapoint *datapoint, std::string assetName, vector<Reading *>& newReadings)
+{
+	static std::string datapointName = datapoint->getName();
+	DatapointValue datapointValue = datapoint->getData();
+
+	std::vector<Datapoint *> *&nestedDP = datapointValue.getDpVec();
+
+	auto dpit = nestedDP->begin();
+	for (auto dpit = nestedDP->begin(); dpit != nestedDP->end(); dpit++)
+	{
+
+		std::string name = (*dpit)->getName();
+		DatapointValue &val = (*dpit)->getData();
+		if (val.getType() == DatapointValue::T_STRING)
+		{
+			name = datapointName + "_" + name;
+			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
+		}
+		else if (val.getType() == DatapointValue::T_INTEGER)
+		{
+			name = datapointName + "_" + name;
+			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
+		}
+		else if (val.getType() == DatapointValue::T_FLOAT)
+		{
+			name = datapointName + "_" + name;
+			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
+		}
+		else if (val.getType() == DatapointValue::T_IMAGE || datapointValue.getType() == DatapointValue::T_DATABUFFER)
+		{
+			name = datapointName + "_" + name;
+			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
+		}
+		else if (val.getType() == DatapointValue::T_DP_DICT || datapointValue.getType() == DatapointValue::T_DP_LIST)
+		{
+			datapointName = datapointName + "_" + name;
+			flattenDatapoint(datapoint, assetName, newReadings);
+		}
+	}
 }
 
 /**
@@ -437,6 +491,18 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 
                         newReadings.push_back(newReading);
 		}
+		else if (assetAction->actn == action::FLATTEN)
+		{
+			// Iterate over the datapoints and change the names
+			vector<Datapoint *> dps = (*elem)->getReadingData();
+			for (auto it = dps.begin(); it != dps.end(); ++it)
+			{
+				Datapoint *dp = *it;
+				const DatapointValue dpv = dp->getData();
+				if (dpv.getType() == DatapointValue::T_DP_DICT || dpv.getType() == DatapointValue::T_DP_LIST)
+					flattenDatapoint(dp, (*elem)->getAssetName(), newReadings);
+			}
+		}
 	}
 
 	delete (ReadingSet *)readingSet;
@@ -562,6 +628,10 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				if (iter->HasMember("type"))
                                         dpType = (*iter)["type"].GetString();
 
+			}
+			else if (actionStr == "flatten")
+			{
+				actn = action::FLATTEN;
 			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
 			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};

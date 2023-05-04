@@ -2,7 +2,7 @@
 Fledge "asset" C++ Filter plugin
 =========================================
 
-Readings data transformation plugin that can include/exclude/rename asset(s)
+Readings data transformation plugin that can include/exclude/rename asset(s) and flatten nested datapoints to single level.
 
 Example filter config:
 
@@ -31,11 +31,14 @@ Example filter config:
 		}, {
 			"asset_name": "Random7",
 			"action": "include"
+		},{
+			"asset_name": "Random8",
+			"action": "flatten"
 	}],
 	"defaultAction": "include"
 }
 
-So there is a "rules" array to be specified, in which each rule entry mentions "asset_name" to act upon, the "action" could be "include", "exclude" or "rename". And in case of "rename" action, the "new_asset_name" is also specified.
+So there is a "rules" array to be specified, in which each rule entry mentions "asset_name" to act upon, the "action" could be "include", "exclude", "rename" or "flatten". And in case of "rename" action, the "new_asset_name" is also specified.
 
 Also a "defaultAction" can be specified which could have values "include" or "exclude", this is the default action applicable to assets that haven't been explicitly mentioned in "rules" list.
 
