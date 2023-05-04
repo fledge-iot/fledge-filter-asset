@@ -62,8 +62,8 @@ typedef enum
 	EXCLUDE,
 	RENAME,
 	REMOVE,
-	DPMAP,
-	FLATTEN	
+	FLATTEN,
+	DPMAP
 } action;
 
 struct AssetAction {
@@ -257,49 +257,36 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 /**
  * Flatten nested datapoint
  *
- * @param datapoint	datapoint to flatten
- * @param assetName	assetname to which datapoint belongs
- * @param newReadings	vector for newreadings of flatten datapoint
+ * @param datapoint		datapoint to flatten
+ * @param datapointName	Name of datapoint
+ * @param flattenDatapoints	vector of flatten datapoints
  */
-void flattenDatapoint(Datapoint *datapoint, std::string assetName, vector<Reading *>& newReadings)
+
+void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapoint *>& flattenDatapoints)
 {
-	static std::string datapointName = datapoint->getName();
 	DatapointValue datapointValue = datapoint->getData();
 
-	std::vector<Datapoint *> *&nestedDP = datapointValue.getDpVec();
+	vector<Datapoint *> *&nestedDP = datapointValue.getDpVec();
 
-	auto dpit = nestedDP->begin();
 	for (auto dpit = nestedDP->begin(); dpit != nestedDP->end(); dpit++)
 	{
 
-		std::string name = (*dpit)->getName();
+		string name = (*dpit)->getName();
 		DatapointValue &val = (*dpit)->getData();
-		if (val.getType() == DatapointValue::T_STRING)
-		{
-			name = datapointName + "_" + name;
-			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
-		}
-		else if (val.getType() == DatapointValue::T_INTEGER)
-		{
-			name = datapointName + "_" + name;
-			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
-		}
-		else if (val.getType() == DatapointValue::T_FLOAT)
-		{
-			name = datapointName + "_" + name;
-			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
-		}
-		else if (val.getType() == DatapointValue::T_IMAGE || datapointValue.getType() == DatapointValue::T_DATABUFFER)
-		{
-			name = datapointName + "_" + name;
-			newReadings.emplace_back(new Reading(assetName , new Datapoint(name, val)) );
-		}
-		else if (val.getType() == DatapointValue::T_DP_DICT || datapointValue.getType() == DatapointValue::T_DP_LIST)
+		
+		if (val.getType() == DatapointValue::T_DP_DICT || datapointValue.getType() == DatapointValue::T_DP_LIST)
 		{
 			datapointName = datapointName + "_" + name;
-			flattenDatapoint(datapoint, assetName, newReadings);
+			flattenDatapoint(*dpit, datapointName, flattenDatapoints);
 		}
+		else
+		{
+			name = datapointName + "_" + name;
+			flattenDatapoints.emplace_back(new Datapoint(name, val) );	
+		}
+
 	}
+	
 }
 
 /**
@@ -495,13 +482,23 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		{
 			// Iterate over the datapoints and change the names
 			vector<Datapoint *> dps = (*elem)->getReadingData();
+			vector<Datapoint *> flattenDatapoints;
 			for (auto it = dps.begin(); it != dps.end(); ++it)
 			{
-				Datapoint *dp = *it;
+				Datapoint *dp = new  Datapoint(**it);
 				const DatapointValue dpv = dp->getData();
 				if (dpv.getType() == DatapointValue::T_DP_DICT || dpv.getType() == DatapointValue::T_DP_LIST)
-					flattenDatapoint(dp, (*elem)->getAssetName(), newReadings);
+				{
+					flattenDatapoint(dp, dp->getName(), flattenDatapoints);
+				}
+				else
+				{
+					flattenDatapoints.emplace_back(dp);
+				}
+
+				newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
 			}
+
 		}
 	}
 
