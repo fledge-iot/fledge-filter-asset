@@ -38,29 +38,37 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
 
   - **remove**: This action will be passed a datapoint name as an argument or a datapoint type. A datapoint with that name will be removed from the asset as it passed through the asset filter. If a type is passed then all data points of that type will be removed.
 
-.. list-table:: Supported data types
+  - **flatten**: This action will flatten nested datapoint structure to single level. 
+
+  - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
+
+In addition a *defaultAction* may be included, however this is limited to *include* and *exclude*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
+
+.. list-table:: Supported data types for "remove" action
    :header-rows: 1
 
    * - Data type
      - Details
    * - INTEGER
      - Integer number 
-   * - STRING 
-     - String of charcters
-   * - FLOAT_ARRAY 
-     - float array
-   * - DP_LIST
-     - datapoint list 
-   * - IMAGE
-     - Image data 
-   * - 2D_FLOAT_ARRAY 
-     - Two dimensional float array
+   * - FLOATING 
+     - Maps to FLOAT
    * - NUMBER 
      - Both integer and floating point values
    * - NON-NUMERIC
-     - everything except integer and floating point values
-   * - FLOATING 
-     - Maps to FLOAT
+     - Everything except integer and floating point values
+   * - STRING 
+     - String of charcters
+   * - DP_LIST
+     - Datapoint list 
+   * - DP_DICT
+     - Datapoint dictionary 
+   * - IMAGE
+     - Image 
+   * - FLOAT_ARRAY 
+     - Float array
+   * - 2D_FLOAT_ARRAY 
+     - Two dimensional float array
    * - BUFFER 
      - Maps to DATABUFFER
    * - ARRAY 
@@ -72,19 +80,30 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
    * - Nested 
      - DP_DICT
 
-Datapoint types are case insensitive.
+Note: Datapoint types are case insensitive.
 
-- **flatten**: This action will flatten nested datapoint structure to single level. 
+Example for flatten "action" 
 
-Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_floor2", "pressure_floor3"
-..coe-block:: JSON
+..code-block:: JSON
   {
       "pressure": {"floor1":30, "floor2":34, "floor3":36 }
   }
 
-  - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
+Datapoint "pressure" will be flattened as "pressure_floor1", "pressure_floor2", "pressure_floor3
 
-.. list-table:: Sample Map
+Example for "map"
+
+.. code-block:: JSON
+
+  {
+  "map": {
+        "rpm": "motorSpeed",
+        "X": "toolOffset",
+        "depth": "cutDepth"
+        }
+  }
+  
+.. list-table:: Map example
    :header-rows: 1
 
    * - Existing Datapoint name
@@ -96,7 +115,6 @@ Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_
    * - depth 
      - cutDepth
 
-In addition a *defaultAction* may be included, however this is limited to *include* and *exclude*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
 
 A typical set of rules might be
 
