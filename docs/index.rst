@@ -84,7 +84,8 @@ Note: Datapoint types are case insensitive.
 
 Example for flatten "action" 
 
-..code-block:: JSON
+.. code-block:: JSON
+
   {
       "pressure": {"floor1":30, "floor2":34, "floor3":36 }
   }
