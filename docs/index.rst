@@ -44,37 +44,37 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
    * - Data type
      - Details
    * - INTEGER
-     -
-   * - STRING
-     -
-  * - FLOAT_ARRAY
-    -
-  * - DP_LIST
-    -
-  * - IMAGE
-    -  
-  * - 2D_FLOAT_ARRAY
-    - 
-  * - NUMBER
-    - Removes both integer and floating point values 
-  * - NON-NUMERIC
-    - Removes everything except integer and floating point values
-  * - FLOATING
-    - Maps to FLOAT
-  * - BUFFER
-    - Maps to DATABUFFER
-  * - ARRAY
-    - Removes FLOAT_ARRAY datapoints
-  * - 2D_ARRAY
-    - Removes FLOAT_ARRAY datapoints
-  * - USER_ARRAY
-    - Removes both FLOAT_ARRAY and 2D_FLOAT_ARRAY datapoints
-  * - Nested
-    - Removes DP_DICT
+     - Integer number 
+   * - STRING 
+     - String of charcters
+   * - FLOAT_ARRAY 
+     - float array
+   * - DP_LIST
+     - datapoint list 
+   * - IMAGE
+     - Image data 
+   * - 2D_FLOAT_ARRAY 
+     - Two dimensional float array
+   * - NUMBER 
+     - Both integer and floating point values
+   * - NON-NUMERIC
+     - everything except integer and floating point values
+   * - FLOATING 
+     - Maps to FLOAT
+   * - BUFFER 
+     - Maps to DATABUFFER
+   * - ARRAY 
+     - FLOAT_ARRAY datapoints
+   * - 2D_ARRAY
+     - FLOAT_ARRAY datapoints
+   * - USER_ARRAY 
+     - Both FLOAT_ARRAY and 2D_FLOAT_ARRAY datapoints
+   * - Nested 
+     - DP_DICT
 
 Datapoint types are case insensitive.
 
--- **flatten**: This action will flatten nested datapoint structure to single level. 
+- **flatten**: This action will flatten nested datapoint structure to single level. 
 
 Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_floor2", "pressure_floor3"
 ..coe-block:: JSON
@@ -84,7 +84,7 @@ Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_
 
   - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
 
-.. list-table:: Sample Map 
+.. list-table:: Sample Map
    :header-rows: 1
 
    * - Existing Datapoint name
