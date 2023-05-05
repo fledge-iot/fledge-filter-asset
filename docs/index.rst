@@ -5,7 +5,7 @@
 Asset Filter
 ============
 
-The *foglamp-filter-asset* is a filter that allows for assets to be included, excluded or renamed in a stream. It may be used either in *South* services or *North* tasks and is driven by a set of rules that define for each named asset what action should be taken.
+The *fledge-filter-asset* is a filter that allows for assets to be included, excluded or renamed in a stream. It may be used either in *South* services or *North* tasks and is driven by a set of rules that define for each named asset what action should be taken.
 
 Asset filters are added in the same way as any other filters.
 
@@ -37,8 +37,44 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
   - **rename**: Change the name of the asset. In this case a third property is included in the rule object, "new_asset_name"
 
   - **remove**: This action will be passed a datapoint name as an argument or a datapoint type. A datapoint with that name will be removed from the asset as it passed through the asset filter. If a type is passed then all data points of that type will be removed.
- 
-  - **flatten**: This action will flatten nested datapoint structure to single level.
+
+.. list-table:: Supported data types
+   :header-rows: 1
+
+   * - Data type
+     - Details
+   * - INTEGER
+     -
+   * - STRING
+     -
+  * - FLOAT_ARRAY
+    -
+  * - DP_LIST
+    -
+  * - IMAGE
+    -  
+  * - 2D_FLOAT_ARRAY
+    - 
+  * - NUMBER
+    - Removes both integer and floating point values 
+  * - NON-NUMERIC
+    - Removes everything except integer and floating point values
+  * - FLOATING
+    - Maps to FLOAT
+  * - BUFFER
+    - Maps to DATABUFFER
+  * - ARRAY
+    - Removes FLOAT_ARRAY datapoints
+  * - 2D_ARRAY
+    - Removes FLOAT_ARRAY datapoints
+  * - USER_ARRAY
+    - Removes both FLOAT_ARRAY and 2D_FLOAT_ARRAY datapoints
+  * - Nested
+    - Removes DP_DICT
+
+Datapoint types are case insensitive.
+
+-- **flatten**: This action will flatten nested datapoint structure to single level. 
 
 Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_floor2", "pressure_floor3"
 ..coe-block:: JSON
@@ -46,31 +82,19 @@ Example: datapoint "pressure" will be flattened as "pressure_floor1", "pressure_
       "pressure": {"floor1":30, "floor2":34, "floor3":36 }
   }
 
-Supported data types  are 
-
-  - **INTEGER**
-  - **STRING**
-  - **FLOAT_ARRAY** 
-  - **DP_LIST** 
-  - **IMAGE** 
-  - **2D_FLOAT_ARRAY** 
-  - **NUMBER** 
-  - **NON-NUMERIC** 
-  - **FLOATING** 
-  - **BUFFER** 
-  - **USER_ARRAY**
-  - **FLOATING** maps to **FLOAT**
-  - **BUFFER** maps to **DATABUFFER** 
-  - **NUMBER** :  removes both integer and floating point values 
-  - **NON-NUMERIC** : removes everything except integer and floating point values
-  - **USER_ARRAY** : removes both FLOAT_ARRAY and 2D_FLOAT_ARRAY datapoints
-  - **Nested** : removes DP_DICT
-  - **ARRAY** : removes FLOAT_ARRAY
-  - **2D_ARRAY** : removes 2D_FLOAT_ARRAY  
-  Datapoint types are case insensitive.
-
   - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
 
+.. list-table:: Sample Map 
+   :header-rows: 1
+
+   * - Existing Datapoint name
+     - New Datapoint Name
+   * - rpm
+     - motorSpeed
+   * - X 
+     - toolOffset
+   * - depth 
+     - cutDepth
 
 In addition a *defaultAction* may be included, however this is limited to *include* and *exclude*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
 
