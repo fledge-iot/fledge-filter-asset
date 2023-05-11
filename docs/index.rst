@@ -28,7 +28,7 @@ Asset filters are added in the same way as any other filters.
 Asset Rules
 -----------
 
-The asset rules are an array of JSON objects which define the asset name to which the rule is applied and an action. Actions can be one of
+The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Actions can be one of
 
   - **include**: The asset should be forwarded to the output of the filter
 
@@ -37,12 +37,85 @@ The asset rules are an array of JSON objects which define the asset name to whic
   - **rename**: Change the name of the asset. In this case a third property is included in the rule object, "new_asset_name"
 
   - **remove**: This action will be passed a datapoint name as an argument or a datapoint type. A datapoint with that name will be removed from the asset as it passed through the asset filter. If a type is passed then all data points of that type will be removed.
-Valid data types supported are "INTEGER", "STRING", "FLOAT_ARRAY", "DP_LIST", "IMAGE", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "FLOATING", "BUFFER", "USER_ARRAY". "FLOATING" maps to "FLOAT", "BUFFER" maps to "DATABUFFER". "NUMBER" type which removes both integer and floating point values and the "NON-NUMERIC" that removes everything except integer and floating point values, USER_ARRAY will remove both FLOAT_ARRAY and 2D_FLOAT_ARRAY datapoints. Nested will remove DP_DICT, ARRAY will remove FLOAT_ARRAY, 2D_ARRAY will remove 2D_FLOAT_ARRAY datapoints. Datapoint types are case insensitive.
+
+  - **flatten**: This action will flatten nested datapoint structure to single level. 
 
   - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
 
-
 In addition a *defaultAction* may be included, however this is limited to *include* and *exclude*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
+
+.. list-table:: Supported data types for "remove" action
+   :header-rows: 1
+
+   * - Data type
+     - Details
+   * - INTEGER
+     - Integer number 
+   * - FLOATING 
+     - Maps to FLOAT
+   * - NUMBER 
+     - Both integer and floating point values
+   * - NON-NUMERIC
+     - Everything except integer and floating point values
+   * - STRING 
+     - String of charcters
+   * - DP_LIST
+     - Datapoint list 
+   * - DP_DICT
+     - Datapoint dictionary 
+   * - IMAGE
+     - Image 
+   * - FLOAT_ARRAY 
+     - Float array
+   * - 2D_FLOAT_ARRAY 
+     - Two dimensional float array
+   * - BUFFER 
+     - Maps to DATABUFFER
+   * - ARRAY 
+     - FLOAT_ARRAY datapoints
+   * - 2D_ARRAY
+     - FLOAT_ARRAY datapoints
+   * - USER_ARRAY 
+     - Both FLOAT_ARRAY and 2D_FLOAT_ARRAY datapoints
+   * - Nested 
+     - DP_DICT
+
+Note: Datapoint types are case insensitive.
+
+Example for flatten "action" 
+
+.. code-block:: JSON
+
+  {
+      "pressure": {"floor1":30, "floor2":34, "floor3":36 }
+  }
+
+Datapoint "pressure" will be flattened as "pressure_floor1", "pressure_floor2", "pressure_floor3
+
+Example for "map"
+
+.. code-block:: JSON
+
+  {
+  "map": {
+        "rpm": "motorSpeed",
+        "X": "toolOffset",
+        "depth": "cutDepth"
+        }
+  }
+  
+.. list-table:: Map example
+   :header-rows: 1
+
+   * - Existing Datapoint name
+     - New Datapoint Name
+   * - rpm
+     - motorSpeed
+   * - X 
+     - toolOffset
+   * - depth 
+     - cutDepth
+
 
 A typical set of rules might be
 
@@ -81,6 +154,10 @@ A typical set of rules might be
 			"asset_name": "Random7",
 			"action": "include"
 	           },
+              {
+			"asset_name": "Random8",
+			"action": "flatten"
+	           },
                    {
                         "asset_name": "lathe1004",
                         "action": "datapointmap",
@@ -103,3 +180,4 @@ A typical set of rules might be
         ],
 	"defaultAction": "include"
   }
+
