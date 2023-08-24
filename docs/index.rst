@@ -42,6 +42,8 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
 
   - **remove**: This action will be passed a datapoint name as an argument or a datapoint type. A datapoint with that name will be removed from the asset as it passed through the asset filter. If a type is passed then all data points of that type will be removed.
 
+  - **split**: This action will allow to split an asset into multiple assets.
+
     .. list-table:: Supported data types for "remove" action
        :header-rows: 1
 
@@ -231,6 +233,32 @@ In this example we have a pipeline that ingests images from a camera, passes the
                   }
                 ]
    }
+
+Split an asset into multiple assets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this example an asset named **lathe1014** will be splited into muliple asseets **asset1**, **asset2** and **asset3**.
+New asset **asset1** will have datapoints **a**, **b** and **f** from asset **lathe1014**
+New asset **asset2** will have datapoints **a**, **e** and **g** from asset **lathe1014**
+New asset **asset3** will have datapoints **b** and **d** from asset **lathe1014**
+
+.. code-block:: JSON
+
+   {
+      "rules" : [
+                  {
+                     "asset_name" : "lathe1014",
+                     "action"     : "split",
+                     "split"      : {
+                        "asset1" : [ "a", "b", "f"],
+                        "asset2" : [ "a", "e", "g"],
+                        "asset3" : [ "b", "d"]
+                      }
+                  }
+                ]
+   }
+
+Note: If split key is missing then one new asset per datapoint will be created. Name of new asset will be the original asset name with the datapoint name appended following an underscore separator.
 
 Combining Rules
 ~~~~~~~~~~~~~~~

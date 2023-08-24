@@ -63,7 +63,8 @@ typedef enum
 	RENAME,
 	REMOVE,
 	FLATTEN,
-	DPMAP
+	DPMAP,
+	SPLIT
 } action;
 
 struct AssetAction {
@@ -80,6 +81,7 @@ typedef struct
 	std::map<std::string, AssetAction> *assetFilterConfig;
 	AssetAction	defaultAction;
 	std::string	configCatName;
+	Document rulesJSON;
 } FILTER_INFO;
 
 /**
@@ -121,16 +123,15 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 	info->assetFilterConfig = new std::map<std::string, AssetAction>;
 	if (filter->getConfig().itemExists("config"))
 	{
-		Document	document;
-		if (document.Parse(filter->getConfig().getValue("config").c_str()).HasParseError())
+		if (info->rulesJSON.Parse(filter->getConfig().getValue("config").c_str()).HasParseError())
 		{
 			Logger::getLogger()->error("Unable to parse filter config: '%s'", filter->getConfig().getValue("config").c_str());
 			return NULL;
 		}
 		
 		info->defaultAction = {action::INCLUDE, ""};
-		Value::MemberIterator defaultAction = document.FindMember("defaultAction");
-	    if(defaultAction == document.MemberEnd() || !defaultAction->value.IsString())
+		Value::MemberIterator defaultAction = info->rulesJSON.FindMember("defaultAction");
+	    if(defaultAction == info->rulesJSON.MemberEnd() || !defaultAction->value.IsString())
 		{
 			info->defaultAction.actn = action::INCLUDE;
 			Logger::getLogger()->info("Parse asset filter config, unable to find defaultAction value: '%s', assuming 'include' for unmentioned asset names", filter->getConfig().getValue("config").c_str());
@@ -153,14 +154,14 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 		}
 
 		// Check for "rules" main property
-		if (!document.HasMember("rules"))
+		if (!info->rulesJSON.HasMember("rules"))
 		{
 			Logger::getLogger()->error("Parse asset filter config, unable to parse "
 						   "the 'rules' top level property in '%s'",
 						   filter->getConfig().getValue("config").c_str());
 			return NULL;
 		}
-		Value &rules = document["rules"];
+		Value &rules = info->rulesJSON["rules"];
 		if (!rules.IsArray())
 		{
 			Logger::getLogger()->error("Parse asset filter config, rules array is missing : '%s'", filter->getConfig().getValue("config").c_str());
@@ -239,6 +240,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			else if (actionStr == "flatten")
 			{
 				actn = action::FLATTEN;
+			}
+			else if (actionStr == "split")
+			{
+				actn = action::SPLIT;
 			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
 			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
@@ -500,6 +505,73 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			}
 
 		}
+		else if (assetAction->actn == action::SPLIT)
+		{
+			Value &rules = info->rulesJSON["rules"];
+			for (auto itr = rules.Begin(); itr != rules.End(); ++itr)
+			{
+				string newAssetName = {};
+				string asset_name = (*itr)["asset_name"].GetString();
+				vector<Datapoint *> dps = (*elem)->getReadingData();
+				AssetTracker *tracker = AssetTracker::getAssetTracker();
+
+				// split key exists
+				if (itr->HasMember("split"))
+				{
+					// Iterate over split key
+					for (auto itr2 = (*itr)["split"].MemberBegin(); itr2 != (*itr)["split"].MemberEnd(); itr2++)
+					{
+						newAssetName = itr2->name.GetString();
+						std::vector<Datapoint *> newDatapoints;
+
+						if (asset_name == (*elem)->getAssetName())
+						{
+							// Iterate over different split asset datapoints list
+							for (auto itr3 = itr2->value.Begin(); itr3 != itr2->value.End(); itr3++)
+							{
+								string dpName =  itr3->GetString();
+
+								// Iterate over the datapoints
+								for (auto it = dps.begin(); it != dps.end(); it++ )
+								{
+									if (dpName == (*it)->getName())
+									{
+										Datapoint *dp = new  Datapoint(**it);
+										newDatapoints.emplace_back(dp);
+									}
+								}
+							}
+						}
+
+						// add new asset to reading set and asset tracker
+						newReadings.emplace_back(new Reading(newAssetName, newDatapoints));
+						if (tracker)
+						{
+							tracker->addAssetTrackingTuple(info->configCatName, newAssetName, string("Filter"));
+						}
+					}
+				}
+				else // split key doesn't exist
+				{
+					if (asset_name == (*elem)->getAssetName())
+					{
+						// Iterate over the datapoints
+						for (auto it = dps.begin(); it != dps.end(); it++)
+						{
+							Datapoint *dp = new  Datapoint(**it);
+							newAssetName = asset_name + "_" + (*it)->getName();
+
+							// add new asset to reading set and asset tracker
+							newReadings.emplace_back(new Reading(newAssetName, dp));
+							if (tracker)
+							{
+								tracker->addAssetTrackingTuple(info->configCatName, newAssetName, string("Filter"));
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	delete (ReadingSet *)readingSet;
@@ -527,16 +599,15 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 	{
 		FILTER_INFO *newInfo = new FILTER_INFO;
 		newInfo->assetFilterConfig = new std::map<std::string, AssetAction>;
-		Document	document;
-		if (document.Parse(filter->getConfig().getValue("config").c_str()).HasParseError())
+		if (info->rulesJSON.Parse(filter->getConfig().getValue("config").c_str()).HasParseError())
 		{
 			Logger::getLogger()->error("Unable to parse filter config: '%s'", filter->getConfig().getValue("config").c_str());
 			return;
 		}
 		
 		newInfo->defaultAction = {action::INCLUDE, ""};
-		Value::MemberIterator defaultAction = document.FindMember("defaultAction");
-	    if(defaultAction == document.MemberEnd() || !defaultAction->value.IsString())
+		Value::MemberIterator defaultAction = info->rulesJSON.FindMember("defaultAction");
+	    if(defaultAction == info->rulesJSON.MemberEnd() || !defaultAction->value.IsString())
 		{
 			newInfo->defaultAction.actn = action::INCLUDE;
 			Logger::getLogger()->info("Parse asset filter config, unable to find defaultAction value: '%s', assuming 'include' for unmentioned asset names", filter->getConfig().getValue("config").c_str());
@@ -558,7 +629,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			Logger::getLogger()->info("Parse asset filter config, default action for unmentioned asset names=%d", newInfo->defaultAction.actn);
 		}
 		
-		Value &rules = document["rules"];
+		Value &rules = info->rulesJSON["rules"];
 		if (!rules.IsArray())
 		{
 			Logger::getLogger()->error("Parse asset filter config, rules array is missing : '%s'", filter->getConfig().getValue("config").c_str());
@@ -629,6 +700,10 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			else if (actionStr == "flatten")
 			{
 				actn = action::FLATTEN;
+			}
+			else if (actionStr == "split")
+			{
+				actn = action::SPLIT;
 			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
 			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType};
