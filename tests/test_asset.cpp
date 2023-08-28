@@ -42,9 +42,9 @@ static const char *removeTest_4 = "{ \"rules\" : [ { \"asset_name\" : \"test\", 
 
 static const char *flattenDatapointTest = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"flatten\" } ] }";
 
-static const char *splitkey_1 = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" , \"split\": { \"test_1\": [\"Floor1\", \"Floor2\"], \"test_2\": [\"Floor1\"] } } ] }";
+static const char *action_split_with_key = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" , \"split\": { \"test_1\": [\"Floor1\", \"Floor2\"], \"test_2\": [\"Floor1\"] } } ] }";
 
-static const char *splitkey_2 = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" } ] }";
+static const char *action_split_without_key = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" } ] }";
 
 TEST(ASSET, exclude)
 {
@@ -601,7 +601,7 @@ TEST(ASSET, assetsplit_1)
 	ASSERT_NE(config, (ConfigCategory *)NULL);
 	config->setItemsValueFromDefault();
 	ASSERT_EQ(config->itemExists("config"), true);
-	config->setValue("config", splitkey_1);
+	config->setValue("config", action_split_with_key);
 	config->setValue("enable", "true");
 	ReadingSet *outReadings;
 	void *handle = plugin_init(config, &outReadings, Handler);
@@ -645,7 +645,7 @@ TEST(ASSET, assetsplit_2)
 	ASSERT_NE(config, (ConfigCategory *)NULL);
 	config->setItemsValueFromDefault();
 	ASSERT_EQ(config->itemExists("config"), true);
-	config->setValue("config", splitkey_2);
+	config->setValue("config", action_split_without_key);
 	config->setValue("enable", "true");
 	ReadingSet *outReadings;
 	void *handle = plugin_init(config, &outReadings, Handler);
