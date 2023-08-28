@@ -518,6 +518,11 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 				// split key exists
 				if (itr->HasMember("split"))
 				{
+					if (!(*itr)["split"].IsObject())
+					{
+						Logger::getLogger()->error( "split key for asset %s is not an object", asset_name.c_str() );
+						continue;
+					}
 					// Iterate over split key
 					for (auto itr2 = (*itr)["split"].MemberBegin(); itr2 != (*itr)["split"].MemberEnd(); itr2++)
 					{

@@ -42,6 +42,10 @@ static const char *removeTest_4 = "{ \"rules\" : [ { \"asset_name\" : \"test\", 
 
 static const char *flattenDatapointTest = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"flatten\" } ] }";
 
+static const char *splitkey_1 = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" , \"split\": { \"test_1\": [\"Floor1\", \"Floor2\"], \"test_2\": [\"Floor1\"] } } ] }";
+
+static const char *splitkey_2 = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" } ] }";
+
 TEST(ASSET, exclude)
 {
 	PLUGIN_INFORMATION *info = plugin_info();
@@ -589,4 +593,87 @@ TEST(ASSET, flattenDatapointDictInsideDic)
 	ASSERT_EQ(results[0]->getDatapoint("pressure_floor3_room3")->getName(), "pressure_floor3_room3");
 }
 
+TEST(ASSET, assetsplit_1)
+{
+	// Test split action with split key
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", splitkey_1);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+	long floor1 = 30;
+	long floor2 = 34;
+	DatapointValue dpv1(floor1);
+	DatapointValue dpv2(floor2);
+	std::vector<Datapoint *> dataPoints;
+	dataPoints.push_back(new Datapoint("Floor1", dpv1));
+	dataPoints.push_back(new Datapoint("Floor2", dpv2));
+	readings->push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
 
+	vector<Reading *> results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 2);
+	// test_1 asset have two data points Floor1 & Floor2
+	ASSERT_EQ(results[0]->getAssetName(), "test_1");
+	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getName(), "Floor1");
+	ASSERT_EQ(results[0]->getDatapoint("Floor2")->getName(), "Floor2");
+	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getData().toInt(), 30);
+	ASSERT_EQ(results[0]->getDatapoint("Floor2")->getData().toInt(), 34);
+
+	// test_2 asset have one data point Floor2
+	ASSERT_EQ(results[1]->getAssetName(), "test_2");
+	ASSERT_EQ(results[1]->getDatapoint("Floor1")->getName(), "Floor1");
+	ASSERT_EQ(results[1]->getDatapoint("Floor1")->getData().toInt(), 30);
+
+	//Memory cleanup
+	delete readings;
+	delete readingSet;
+
+}
+
+TEST(ASSET, assetsplit_2)
+{
+	// Test split action without split key
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", splitkey_2);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+	long floor1 = 30;
+	long floor2 = 34;
+	DatapointValue dpv1(floor1);
+	DatapointValue dpv2(floor2);
+	std::vector<Datapoint *> dataPoints;
+	dataPoints.push_back(new Datapoint("Floor1", dpv1));
+	dataPoints.push_back(new Datapoint("Floor2", dpv2));
+	readings->push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 2);
+	// test_1 asset have two data points Floor1 & Floor2
+	ASSERT_EQ(results[0]->getAssetName(), "test_Floor1");
+	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getName(), "Floor1");
+	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getData().toInt(), 30);
+
+	// test_2 asset have one data point Floor2
+	ASSERT_EQ(results[1]->getAssetName(), "test_Floor2");
+	ASSERT_EQ(results[1]->getDatapoint("Floor2")->getName(), "Floor2");
+	ASSERT_EQ(results[1]->getDatapoint("Floor2")->getData().toInt(), 34);
+
+	//Memory cleanup
+	delete readings;
+	delete readingSet;
+}
