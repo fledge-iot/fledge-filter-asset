@@ -528,6 +528,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 					{
 						newAssetName = itr2->name.GetString();
 						std::vector<Datapoint *> newDatapoints;
+						bool isDatapoint = false;
 
 						if (asset_name == (*elem)->getAssetName())
 						{
@@ -543,17 +544,22 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 									{
 										Datapoint *dp = new  Datapoint(**it);
 										newDatapoints.emplace_back(dp);
+										isDatapoint = true;
 									}
 								}
 							}
 						}
 
-						// add new asset to reading set and asset tracker
-						newReadings.emplace_back(new Reading(newAssetName, newDatapoints));
-						if (tracker)
+						if(isDatapoint)
 						{
-							tracker->addAssetTrackingTuple(info->configCatName, newAssetName, string("Filter"));
+							// add new asset to reading set and asset tracker
+							newReadings.emplace_back(new Reading(newAssetName, newDatapoints));
+							if (tracker)
+							{
+								tracker->addAssetTrackingTuple(info->configCatName, newAssetName, string("Filter"));
+							}
 						}
+
 					}
 				}
 				else // split key doesn't exist
