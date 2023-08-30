@@ -46,6 +46,9 @@ static const char *action_split_with_key = "{ \"rules\" : [ { \"asset_name\" : \
 
 static const char *action_split_without_key = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" } ] }";
 
+static const char *action_split_with_extra_DP = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" , \"split\": { \"test_1\": [\"Floor1\", \"Floor2\"] } } ] }";
+
+
 TEST(ASSET, exclude)
 {
 	PLUGIN_INFORMATION *info = plugin_info();
@@ -676,4 +679,39 @@ TEST(ASSET, assetsplit_2)
 	//Memory cleanup
 	delete readings;
 	delete readingSet;
+}
+
+TEST(ASSET, assetsplit_3)
+{
+	// Test split action with split key having datapoint for split asset which doesn't exists into asset
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", action_split_with_extra_DP);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+	long floor1 = 30;
+
+	DatapointValue dpv1(floor1);
+	std::vector<Datapoint *> dataPoints;
+	dataPoints.push_back(new Datapoint("Floor1", dpv1));
+	readings->push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 1);
+	// test_1 asset have two data points Floor1
+	ASSERT_EQ(results[0]->getAssetName(), "test_1");
+	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getName(), "Floor1");
+	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getData().toInt(), 30);
+
+	//Memory cleanup
+	delete readings;
+	delete readingSet;
+
 }
