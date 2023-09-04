@@ -265,7 +265,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 }
 
 /**
- * Flatten nested datapoint
+ * splitAssetConfigure populate splitAssets parameter from rules JSON for split action
  *
  * @param rules		rules JSON
  * @param splitAssets	Container to be populated with split asset name and datapoints
