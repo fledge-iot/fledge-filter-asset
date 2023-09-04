@@ -261,7 +261,7 @@ In this example an asset named **lathe1014** will be splited into muliple assets
                 ]
    }
 
-Note: If **split** key is missing then one new asset per datapoint will be created. Name of new asset will be the original asset name with the datapoint name appended following an underscore separator.
+Note: If **split** key is missing then one new asset per datapoint will be created. The name of new asset will be the original asset name with the datapoint name appended following an underscore separator.
 
 Combining Rules
 ~~~~~~~~~~~~~~~
