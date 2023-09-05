@@ -73,7 +73,6 @@ struct AssetAction {
 	map<string, string> dpmap;
 	string datapoint; // valid only in case of REMOVE
 	string type; // valid only in case of REMOVE
-	// map<asset_name, map<split_asset_name, vector<split_asset_datapoints>>>
 	map<string, map< string, vector<string> > > split_assets; // valid only in case of SPLIT
 };
 
