@@ -80,6 +80,8 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
 
     Note: Datapoint types are case insensitive.
 
+  - **split**: This action will allow to split an asset into multiple assets.
+
   - **flatten**: This action will flatten nested datapoint structure to single level. 
 
   - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
@@ -231,6 +233,35 @@ In this example we have a pipeline that ingests images from a camera, passes the
                   }
                 ]
    }
+
+Split an asset into multiple assets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this example an asset named **lathe1014** will be splited into muliple assets **asset1**, **asset2** and **asset3**.
+
+* New asset **asset1** will have datapoints **a**, **b** and **f** from asset **lathe1014**
+
+* New asset **asset2** will have datapoints **a**, **e** and **g** from asset **lathe1014**
+
+* New asset **asset3** will have datapoints **b** and **d** from asset **lathe1014**
+
+.. code-block:: JSON
+
+   {
+      "rules" : [
+                  {
+                     "asset_name" : "lathe1014",
+                     "action"     : "split",
+                     "split"      : {
+                        "asset1" : [ "a", "b", "f"],
+                        "asset2" : [ "a", "e", "g"],
+                        "asset3" : [ "b", "d"]
+                      }
+                  }
+                ]
+   }
+
+Note: If **split** key is missing then one new asset per datapoint will be created. The name of new asset will be the original asset name with the datapoint name appended following an underscore separator.
 
 Combining Rules
 ~~~~~~~~~~~~~~~
