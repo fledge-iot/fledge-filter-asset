@@ -15,9 +15,14 @@
 #include <filter.h>
 #include <reading_set.h>
 #include <version.h>
+#include <algorithm>
+#include <set>
+#include <mutex>
 
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
+
+std::mutex g_mutex;
 
 #define DEFAULT_CONFIG "{\"plugin\" : { \"description\" : \"Asset filter plugin\", " \
                        		"\"type\" : \"string\", " \
@@ -56,13 +61,19 @@ typedef enum
 	INCLUDE,
 	EXCLUDE,
 	RENAME,
-	DPMAP
+	REMOVE,
+	FLATTEN,
+	DPMAP,
+	SPLIT
 } action;
 
 struct AssetAction {
 	action actn;
 	string new_asset_name; // valid only in case of RENAME
 	map<string, string> dpmap;
+	string datapoint; // valid only in case of REMOVE
+	string type; // valid only in case of REMOVE
+	map<string, map< string, vector<string> > > split_assets; // valid only in case of SPLIT
 };
 
 typedef struct
@@ -73,6 +84,7 @@ typedef struct
 	std::string	configCatName;
 } FILTER_INFO;
 
+void splitAssetConfigure(Value &rules, map<string, map<string,vector<string>>> &splitAssets);
 /**
  * Return the information about this plugin
  */
@@ -101,6 +113,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			  OUTPUT_HANDLE *outHandle,
 			  OUTPUT_STREAM output)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = new FILTER_INFO;
 	info->handle = new FledgeFilter(FILTER_NAME, *config, outHandle, output);
 	FledgeFilter *filter = info->handle;
@@ -110,7 +124,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 	info->assetFilterConfig = new std::map<std::string, AssetAction>;
 	if (filter->getConfig().itemExists("config"))
 	{
-		Document	document;
+		Document document;
+
 		if (document.Parse(filter->getConfig().getValue("config").c_str()).HasParseError())
 		{
 			Logger::getLogger()->error("Unable to parse filter config: '%s'", filter->getConfig().getValue("config").c_str());
@@ -172,6 +187,9 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
 			map<string, string> dpmap;
+			map<string, map<string,vector<string>>> splitAssets;
+			string datapoint;
+			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -204,8 +222,36 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 					return NULL;
 				}
 			}
+			else if (actionStr == "remove")
+			{
+				actn = action::REMOVE;
+
+                                if (iter->HasMember("datapoint"))
+				{
+					if ((*iter)["datapoint"].IsString())
+					{
+                                        	datapoint = (*iter)["datapoint"].GetString();
+					}
+				}
+                                if (iter->HasMember("type"))
+				{
+					if ((*iter)["type"].IsString())
+					{
+                                        	dpType = (*iter)["type"].GetString();
+					}
+				}
+			}
+			else if (actionStr == "flatten")
+			{
+				actn = action::FLATTEN;
+			}
+			else if (actionStr == "split")
+			{
+				actn = action::SPLIT;
+				splitAssetConfigure(document["rules"], splitAssets);
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
+			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
 		}
 	}
 	else
@@ -218,6 +264,96 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 }
 
 /**
+ * splitAssetConfigure populate splitAssets parameter from rules JSON for split action
+ *
+ * @param rules		rules JSON
+ * @param splitAssets	Container to be populated with split asset name and datapoints
+ */
+
+void splitAssetConfigure(Value &rules, map<string, map<string,vector<string>>> &splitAssets)
+{
+	for (auto itr = rules.Begin(); itr != rules.End(); ++itr)
+	{
+		string newAssetName = {};
+		string asset_name = (*itr)["asset_name"].GetString();
+		// split key exists
+		if (itr->HasMember("split"))
+		{
+			if (!(*itr)["split"].IsObject())
+			{
+				Logger::getLogger()->error( "split key for asset %s is not an object", asset_name.c_str() );
+				continue;
+			}
+
+			map<string, vector<string>> newSplitAsset;
+			// Iterate over split key
+			for (auto itr2 = (*itr)["split"].MemberBegin(); itr2 != (*itr)["split"].MemberEnd(); itr2++)
+			{
+				vector<string> splitAssetDataPoints;
+				splitAssetDataPoints.clear();
+				newAssetName = itr2->name.GetString();
+				if (!itr2->value.IsArray())
+				{
+					Logger::getLogger()->error( "split asset %s does not have list of data points", newAssetName.c_str());
+					continue;
+				}
+				// Iterate over different split asset datapoints list
+				for (auto itr3 = itr2->value.Begin(); itr3 != itr2->value.End(); itr3++)
+				{
+					string dpName =  itr3->GetString();
+					splitAssetDataPoints.push_back(dpName);
+				}
+				// Populate current split asset datapoints
+				newSplitAsset.insert(std::make_pair(newAssetName,splitAssetDataPoints));
+			}
+			// Populate split asset data for configured asset
+			splitAssets.insert(std::make_pair(asset_name,newSplitAsset));
+		}
+		else
+		{
+			// Populate split asset data for configured asset
+			map<string, vector<string>> newSplitAsset;
+			splitAssets.insert(std::make_pair(asset_name,newSplitAsset));
+		}
+	}
+}
+
+/**
+ * Flatten nested datapoint
+ *
+ * @param datapoint		datapoint to flatten
+ * @param datapointName	Name of datapoint
+ * @param flattenDatapoints	vector of flatten datapoints
+ */
+
+void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapoint *>& flattenDatapoints)
+{
+	DatapointValue datapointValue = datapoint->getData();
+
+	vector<Datapoint *> *&nestedDP = datapointValue.getDpVec();
+
+	for (auto dpit = nestedDP->begin(); dpit != nestedDP->end(); dpit++)
+	{
+
+		string name = (*dpit)->getName();
+		DatapointValue &val = (*dpit)->getData();
+		
+		if (val.getType() == DatapointValue::T_DP_DICT || val.getType() == DatapointValue::T_DP_LIST)
+		{
+			datapointName = datapointName + "_" + name;
+			flattenDatapoint(*dpit, datapointName, flattenDatapoints);
+		}
+		else
+		{
+			name = datapointName + "_" + name;
+			flattenDatapoints.emplace_back(new Datapoint(name, val) );	
+		}
+
+	}
+	
+}
+
+/**
  * Ingest a set of readings into the plugin for processing
  *
  * @param handle	The plugin handle returned from plugin_init
@@ -226,6 +362,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 void plugin_ingest(PLUGIN_HANDLE *handle,
 		   READINGSET *readingSet)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = (FILTER_INFO *) handle;
 	FledgeFilter* filter = info->handle;
 	
@@ -241,6 +379,8 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 
 	// Just get all the readings in the readingset
 	const vector<Reading *>& readings = origReadingSet->getAllReadings();
+
+	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "NESTED", "ARRAY", "2D_ARRAY", "USER_ARRAY"};
 	
 	// Iterate the readings
 	for (vector<Reading *>::const_iterator elem = readings.begin();
@@ -307,6 +447,186 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 			}
 			newReadings.push_back(newReading);
 		}
+		else if (assetAction->actn == action::REMOVE)
+		{
+			Reading *newReading = new Reading(**elem); // copy original Reading object
+                        // Iterate over the datapoints and change the names
+                        vector<Datapoint *>& dps = newReading->getReadingData();
+			bool dpFound = false;
+			bool typeFound = false;
+			string datapoint;
+			string type;
+                        for (auto it = dps.begin(); it != dps.end(); )
+                        {
+                                Datapoint *dp = *it;
+                                datapoint = assetAction->datapoint;
+				type = assetAction->type;
+				const DatapointValue dpv = dp->getData();
+                                string dpvStr = dpv.getTypeStr();
+                                if (!datapoint.empty())
+                                {
+                                	if (datapoint == dp->getName())
+					{
+						it = dps.erase(it);
+						Logger::getLogger()->info("Removing datapoint with name %s", datapoint.c_str());
+						dpFound = true;
+					}
+					else
+						++it;
+                                }
+				else if (!type.empty())
+				{
+					transform(type.begin(), type.end(), type.begin(), ::toupper);
+					if (type == "FLOATING") type = "FLOAT";
+					if (type == "BUFFER") type = "DATABUFFER";
+					if (type == "NESTED") type = "DP_DICT";
+					if (type == "2D_ARRAY") type = "2D_FLOAT_ARRAY";
+					if (type == "ARRAY") type = "FLOAT_ARRAY";
+
+					if (validDpTypes.find (type) == validDpTypes.end())
+					{
+						Logger::getLogger()->warn("Invalid Datapoint type %s", type.c_str());
+						break;
+					}
+					const DatapointValue dpv = dp->getData();
+					string dpvStr = dpv.getTypeStr();
+					if (dpvStr == type)
+					{
+						it = dps.erase(it);
+						Logger::getLogger()->info("Removing datapoint with type %s", type.c_str());
+						typeFound = true;
+					}
+					else if (type == "NUMBER")
+                                        {
+                                                if (dpvStr == "FLOAT" || dpvStr == "INTEGER")
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+						else 
+							++it;
+                                        }
+                                        else if (type == "NON-NUMERIC")
+                                        {
+                                                if (dpvStr != "FLOAT" && dpvStr != "INTEGER")
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+						else
+							++it;
+                                        }
+					else if (type == "USER_ARRAY")
+					{
+						if (dpvStr == "FLOAT_ARRAY" || dpvStr == "2D_FLOAT_ARRAY" )
+                                                {
+                                                        it = dps.erase(it);
+                                                        Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+                                                        typeFound = true;
+                                                }
+                                                else
+                                                        ++it;
+					}
+					else
+						++it;
+				}
+				else
+					++it;
+                        }
+			if (!datapoint.empty() && !dpFound)
+				Logger::getLogger()->info("Datapoint with name %s not found for removal", datapoint.c_str());
+			if (!type.empty() && !typeFound)
+				Logger::getLogger()->info("Datapoint with type %s not found for removal", type.c_str());
+
+                        newReadings.push_back(newReading);
+		}
+		else if (assetAction->actn == action::FLATTEN)
+		{
+			// Iterate over the datapoints and change the names
+			vector<Datapoint *> dps = (*elem)->getReadingData();
+			vector<Datapoint *> flattenDatapoints;
+			for (auto it = dps.begin(); it != dps.end(); ++it)
+			{
+				Datapoint *dp = new  Datapoint(**it);
+				const DatapointValue dpv = dp->getData();
+				if (dpv.getType() == DatapointValue::T_DP_DICT || dpv.getType() == DatapointValue::T_DP_LIST)
+				{
+					flattenDatapoint(dp, dp->getName(), flattenDatapoints);
+				}
+				else
+				{
+					flattenDatapoints.emplace_back(dp);
+				}
+
+				newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
+			}
+
+		}
+		else if (assetAction->actn == action::SPLIT)
+		{
+			auto found = assetAction->split_assets.find((*elem)->getAssetName());
+			if (found != assetAction->split_assets.end())
+			{
+				AssetTracker *tracker = AssetTracker::getAssetTracker();
+				vector<Datapoint *> dps = (*elem)->getReadingData();
+				auto splitAssets = found->second;
+
+				// split key exists
+				if (!splitAssets.empty())
+				{
+					// Iterate over split assets
+					for (auto const &pair: found->second)
+					{
+						std::string newAssetName = pair.first;
+						vector<string> splitAssetDPs = pair.second;
+						std::vector<Datapoint *> newDatapoints;
+						bool isDatapoint = false;
+
+						// Iterate over split assets datapoints
+						for (string dpName : splitAssetDPs)
+						{
+							for (auto it = dps.begin(); it != dps.end(); it++ )
+							{
+								if (dpName == (*it)->getName())
+								{
+									Datapoint *dp = new  Datapoint(**it);
+									newDatapoints.emplace_back(dp);
+									isDatapoint = true;
+								}
+							}
+						}
+						if(isDatapoint)
+						{
+							// Add new asset to reading set and asset tracker
+							newReadings.emplace_back(new Reading(newAssetName, newDatapoints));
+							if (tracker)
+							{
+								tracker->addAssetTrackingTuple(info->configCatName, newAssetName, string("Filter"));
+							}
+						}
+					}
+				}
+				else // Split key doesn't exist
+				{
+					// Iterate over the datapoints
+					for (auto it = dps.begin(); it != dps.end(); it++)
+					{
+						std::string newAssetName = (*elem)->getAssetName();
+						newAssetName = newAssetName + "_" + (*it)->getName();
+						Datapoint *dp = new  Datapoint(**it);
+
+						// Add new asset to reading set and asset tracker
+						newReadings.emplace_back(new Reading(newAssetName, dp));
+						if (tracker)
+						{
+							tracker->addAssetTrackingTuple(info->configCatName, newAssetName, string("Filter"));
+						}
+					}
+				}
+			}
+		}
 	}
 
 	delete (ReadingSet *)readingSet;
@@ -323,6 +643,8 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
  */
 void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 {
+	lock_guard<mutex> guard(g_mutex);
+
 	FILTER_INFO *info = (FILTER_INFO *) handle;
 	FledgeFilter* filter = info->handle;
 
@@ -386,6 +708,9 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			string actionStr= (*iter)["action"].GetString();
 			string new_asset_name = "";
 			map<string, string> dpmap;
+			map<string, map<string,vector<string>>> splitAssets;
+			string datapoint;
+			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
 			action actn;
 			if (actionStr == "include")
@@ -418,8 +743,28 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 					return;
 				}
 			}
+			else if(actionStr == "remove")
+			{
+				actn = action::REMOVE;
+
+				if (iter->HasMember("datapoint"))
+                                        datapoint = (*iter)["datapoint"].GetString();
+
+				if (iter->HasMember("type"))
+                                        dpType = (*iter)["type"].GetString();
+
+			}
+			else if (actionStr == "flatten")
+			{
+				actn = action::FLATTEN;
+			}
+			else if (actionStr == "split")
+			{
+				actn = action::SPLIT;
+				splitAssetConfigure(document["rules"], splitAssets);
+			}
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap};
+			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
 		}
 		auto tmp = new std::map<std::string, AssetAction>;
 		tmp = info->assetFilterConfig;
