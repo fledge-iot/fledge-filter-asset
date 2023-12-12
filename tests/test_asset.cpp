@@ -608,7 +608,7 @@ TEST(ASSET, assetsplit_1)
 	config->setValue("enable", "true");
 	ReadingSet *outReadings;
 	void *handle = plugin_init(config, &outReadings, Handler);
-	vector<Reading *> *readings = new vector<Reading *>;
+	vector<Reading *> readings;
 	long floor1 = 30;
 	long floor2 = 34;
 	DatapointValue dpv1(floor1);
@@ -616,8 +616,8 @@ TEST(ASSET, assetsplit_1)
 	std::vector<Datapoint *> dataPoints;
 	dataPoints.push_back(new Datapoint("Floor1", dpv1));
 	dataPoints.push_back(new Datapoint("Floor2", dpv2));
-	readings->push_back(new Reading("test", dataPoints));
-	ReadingSet *readingSet = new ReadingSet(readings);
+	readings.push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(&readings);
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -633,11 +633,6 @@ TEST(ASSET, assetsplit_1)
 	ASSERT_EQ(results[1]->getAssetName(), "test_2");
 	ASSERT_EQ(results[1]->getDatapoint("Floor1")->getName(), "Floor1");
 	ASSERT_EQ(results[1]->getDatapoint("Floor1")->getData().toInt(), 30);
-
-	//Memory cleanup
-	delete readings;
-	delete readingSet;
-
 }
 
 TEST(ASSET, assetsplit_2)
@@ -652,7 +647,7 @@ TEST(ASSET, assetsplit_2)
 	config->setValue("enable", "true");
 	ReadingSet *outReadings;
 	void *handle = plugin_init(config, &outReadings, Handler);
-	vector<Reading *> *readings = new vector<Reading *>;
+	vector<Reading *> readings;
 	long floor1 = 30;
 	long floor2 = 34;
 	DatapointValue dpv1(floor1);
@@ -660,8 +655,8 @@ TEST(ASSET, assetsplit_2)
 	std::vector<Datapoint *> dataPoints;
 	dataPoints.push_back(new Datapoint("Floor1", dpv1));
 	dataPoints.push_back(new Datapoint("Floor2", dpv2));
-	readings->push_back(new Reading("test", dataPoints));
-	ReadingSet *readingSet = new ReadingSet(readings);
+	readings.push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(&readings);
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -675,10 +670,6 @@ TEST(ASSET, assetsplit_2)
 	ASSERT_EQ(results[1]->getAssetName(), "test_Floor2");
 	ASSERT_EQ(results[1]->getDatapoint("Floor2")->getName(), "Floor2");
 	ASSERT_EQ(results[1]->getDatapoint("Floor2")->getData().toInt(), 34);
-
-	//Memory cleanup
-	delete readings;
-	delete readingSet;
 }
 
 TEST(ASSET, assetsplit_3)
@@ -693,14 +684,14 @@ TEST(ASSET, assetsplit_3)
 	config->setValue("enable", "true");
 	ReadingSet *outReadings;
 	void *handle = plugin_init(config, &outReadings, Handler);
-	vector<Reading *> *readings = new vector<Reading *>;
+	vector<Reading *> readings;
 	long floor1 = 30;
 
 	DatapointValue dpv1(floor1);
 	std::vector<Datapoint *> dataPoints;
 	dataPoints.push_back(new Datapoint("Floor1", dpv1));
-	readings->push_back(new Reading("test", dataPoints));
-	ReadingSet *readingSet = new ReadingSet(readings);
+	readings.push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(&readings);
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -709,9 +700,4 @@ TEST(ASSET, assetsplit_3)
 	ASSERT_EQ(results[0]->getAssetName(), "test_1");
 	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getName(), "Floor1");
 	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getData().toInt(), 30);
-
-	//Memory cleanup
-	delete readings;
-	delete readingSet;
-
 }
