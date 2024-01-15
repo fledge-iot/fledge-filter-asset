@@ -22,7 +22,6 @@
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
 
-std::mutex g_mutex;
 
 #define DEFAULT_CONFIG "{\"plugin\" : { \"description\" : \"Asset filter plugin\", " \
                        		"\"type\" : \"string\", " \
@@ -82,6 +81,7 @@ typedef struct
 	std::map<std::string, AssetAction> *assetFilterConfig;
 	AssetAction	defaultAction;
 	std::string	configCatName;
+	std::mutex 	mutex;
 } FILTER_INFO;
 
 void splitAssetConfigure(Value &rules, map<string, map<string,vector<string>>> &splitAssets);
@@ -113,9 +113,9 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			  OUTPUT_HANDLE *outHandle,
 			  OUTPUT_STREAM output)
 {
-	lock_guard<mutex> guard(g_mutex);
 
 	FILTER_INFO *info = new FILTER_INFO;
+	lock_guard<mutex> guard(info->mutex);
 	info->handle = new FledgeFilter(FILTER_NAME, *config, outHandle, output);
 	FledgeFilter *filter = info->handle;
 	info->configCatName = config->getName();
@@ -362,9 +362,8 @@ void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapo
 void plugin_ingest(PLUGIN_HANDLE *handle,
 		   READINGSET *readingSet)
 {
-	lock_guard<mutex> guard(g_mutex);
-
 	FILTER_INFO *info = (FILTER_INFO *) handle;
+	lock_guard<mutex> guard(info->mutex);
 	FledgeFilter* filter = info->handle;
 	
 	if (!filter->isEnabled())
@@ -643,9 +642,9 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
  */
 void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 {
-	lock_guard<mutex> guard(g_mutex);
 
 	FILTER_INFO *info = (FILTER_INFO *) handle;
+	lock_guard<mutex> guard(info->mutex);
 	FledgeFilter* filter = info->handle;
 
 	filter->setConfig(newConfig);
