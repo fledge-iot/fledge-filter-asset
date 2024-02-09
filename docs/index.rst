@@ -86,7 +86,7 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
 
   - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
 
-In addition a *defaultAction* may be included, however this is limited to *include* and *exclude*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
+In addition a *defaultAction* may be included, however this is limited to *include*, *exclude* and *flatten*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
 
 Examples
 --------
