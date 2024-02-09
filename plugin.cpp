@@ -148,6 +148,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				info->defaultAction.actn = action::INCLUDE;
 			else if (actionStr == "exclude")
 				info->defaultAction.actn = action::EXCLUDE;
+			else if (actionStr == "flatten")
+				info->defaultAction.actn = action::FLATTEN;
 			else
 			{
 				Logger::getLogger()->error("Parse asset filter config, unable to parse defaultAction value: '%s'", filter->getConfig().getValue("config").c_str());
@@ -336,7 +338,7 @@ void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapo
 	{
 
 		string name = (*dpit)->getName();
-		DatapointValue &val = (*dpit)->getData();
+		DatapointValue val = (*dpit)->getData();
 		
 		if (val.getType() == DatapointValue::T_DP_DICT || val.getType() == DatapointValue::T_DP_LIST)
 		{
@@ -676,6 +678,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				newInfo->defaultAction.actn = action::INCLUDE;
 			else if (actionStr == "exclude")
 				newInfo->defaultAction.actn = action::EXCLUDE;
+			else if (actionStr == "flatten")
+				newInfo->defaultAction.actn = action::FLATTEN;
 			else
 			{
 				Logger::getLogger()->error("Parse asset filter config, unable to parse defaultAction value: '%s'", filter->getConfig().getValue("config").c_str());
