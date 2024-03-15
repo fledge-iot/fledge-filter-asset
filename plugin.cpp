@@ -547,10 +547,10 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		{
 			// Iterate over the datapoints and change the names
 			vector<Datapoint *> dps = (*elem)->getReadingData();
-			vector<Datapoint *> flattenDatapoints;
 			for (auto it = dps.begin(); it != dps.end(); ++it)
 			{
-				Datapoint *dp = new  Datapoint(**it);
+				vector<Datapoint *> flattenDatapoints;
+				Datapoint *dp = new Datapoint(**it);
 				const DatapointValue dpv = dp->getData();
 				if (dpv.getType() == DatapointValue::T_DP_DICT || dpv.getType() == DatapointValue::T_DP_LIST)
 				{
