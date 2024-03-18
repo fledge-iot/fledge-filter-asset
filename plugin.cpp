@@ -547,23 +547,23 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		{
 			// Iterate over the datapoints and change the names
 			vector<Datapoint *> dps = (*elem)->getReadingData();
+			vector<Datapoint *> flattenDatapoints;
 			for (auto it = dps.begin(); it != dps.end(); ++it)
 			{
-				vector<Datapoint *> flattenDatapoints;
-				Datapoint *dp = new Datapoint(**it);
+				Datapoint *dp = new  Datapoint(**it);
 				const DatapointValue dpv = dp->getData();
 				if (dpv.getType() == DatapointValue::T_DP_DICT || dpv.getType() == DatapointValue::T_DP_LIST)
 				{
 					flattenDatapoint(dp, dp->getName(), flattenDatapoints);
+					delete dp;
 				}
 				else
 				{
 					flattenDatapoints.emplace_back(dp);
 				}
 
-				newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
 			}
-
+			newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
 		}
 		else if (assetAction->actn == action::SPLIT)
 		{
