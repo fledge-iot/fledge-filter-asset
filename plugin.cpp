@@ -555,15 +555,15 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 				if (dpv.getType() == DatapointValue::T_DP_DICT || dpv.getType() == DatapointValue::T_DP_LIST)
 				{
 					flattenDatapoint(dp, dp->getName(), flattenDatapoints);
+					delete dp;
 				}
 				else
 				{
 					flattenDatapoints.emplace_back(dp);
 				}
 
-				newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
 			}
-
+			newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
 		}
 		else if (assetAction->actn == action::SPLIT)
 		{
