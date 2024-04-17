@@ -22,7 +22,6 @@
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
 
-std::mutex g_mutex;
 
 #define DEFAULT_CONFIG "{\"plugin\" : { \"description\" : \"Asset filter plugin\", " \
                        		"\"type\" : \"string\", " \
@@ -82,6 +81,7 @@ typedef struct
 	std::map<std::string, AssetAction> *assetFilterConfig;
 	AssetAction	defaultAction;
 	std::string	configCatName;
+	std::mutex 	mutex;
 } FILTER_INFO;
 
 void splitAssetConfigure(Value &rules, map<string, map<string,vector<string>>> &splitAssets);
@@ -113,9 +113,9 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			  OUTPUT_HANDLE *outHandle,
 			  OUTPUT_STREAM output)
 {
-	lock_guard<mutex> guard(g_mutex);
 
 	FILTER_INFO *info = new FILTER_INFO;
+	lock_guard<mutex> guard(info->mutex);
 	info->handle = new FledgeFilter(FILTER_NAME, *config, outHandle, output);
 	FledgeFilter *filter = info->handle;
 	info->configCatName = config->getName();
@@ -148,6 +148,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				info->defaultAction.actn = action::INCLUDE;
 			else if (actionStr == "exclude")
 				info->defaultAction.actn = action::EXCLUDE;
+			else if (actionStr == "flatten")
+				info->defaultAction.actn = action::FLATTEN;
 			else
 			{
 				Logger::getLogger()->error("Parse asset filter config, unable to parse defaultAction value: '%s'", filter->getConfig().getValue("config").c_str());
@@ -336,7 +338,7 @@ void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapo
 	{
 
 		string name = (*dpit)->getName();
-		DatapointValue &val = (*dpit)->getData();
+		DatapointValue val = (*dpit)->getData();
 		
 		if (val.getType() == DatapointValue::T_DP_DICT || val.getType() == DatapointValue::T_DP_LIST)
 		{
@@ -362,9 +364,8 @@ void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapo
 void plugin_ingest(PLUGIN_HANDLE *handle,
 		   READINGSET *readingSet)
 {
-	lock_guard<mutex> guard(g_mutex);
-
 	FILTER_INFO *info = (FILTER_INFO *) handle;
+	lock_guard<mutex> guard(info->mutex);
 	FledgeFilter* filter = info->handle;
 	
 	if (!filter->isEnabled())
@@ -554,15 +555,15 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 				if (dpv.getType() == DatapointValue::T_DP_DICT || dpv.getType() == DatapointValue::T_DP_LIST)
 				{
 					flattenDatapoint(dp, dp->getName(), flattenDatapoints);
+					delete dp;
 				}
 				else
 				{
 					flattenDatapoints.emplace_back(dp);
 				}
 
-				newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
 			}
-
+			newReadings.emplace_back(new Reading((*elem)->getAssetName(), flattenDatapoints));
 		}
 		else if (assetAction->actn == action::SPLIT)
 		{
@@ -643,9 +644,9 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
  */
 void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 {
-	lock_guard<mutex> guard(g_mutex);
 
 	FILTER_INFO *info = (FILTER_INFO *) handle;
+	lock_guard<mutex> guard(info->mutex);
 	FledgeFilter* filter = info->handle;
 
 	filter->setConfig(newConfig);
@@ -677,6 +678,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				newInfo->defaultAction.actn = action::INCLUDE;
 			else if (actionStr == "exclude")
 				newInfo->defaultAction.actn = action::EXCLUDE;
+			else if (actionStr == "flatten")
+				newInfo->defaultAction.actn = action::FLATTEN;
 			else
 			{
 				Logger::getLogger()->error("Parse asset filter config, unable to parse defaultAction value: '%s'", filter->getConfig().getValue("config").c_str());
