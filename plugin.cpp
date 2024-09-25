@@ -258,7 +258,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				StringReplaceAll(asset_name,"\\\\","\\"); //unescape '\' from regular expression
 				std::regex re(asset_name); // Check if regex is valid
 			}
-			catch(const std::exception& e)
+			catch(std::regex_error)
 			{
 				Logger::getLogger()->error("Invalid regular expression %s , will be ignored from further processing", asset_name.c_str());
 			}
