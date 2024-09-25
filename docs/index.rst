@@ -330,3 +330,23 @@ Rules may be combined to perform multiple operations in a single stage of a pipe
 	"defaultAction": "include"
   }
 
+Regular Expression
+~~~~~~~~~~~~~~~~~~
+
+Regular expression can be used for asset_name values in the JSON.
+In the following example, datapoint "Pressure" will be removed from all the assets; if exists.
+
+.. code-block:: JSON
+
+  {
+	"rules": [
+      
+          {
+              "asset_name": ".*",
+              "action": "remove",
+              "datapoint": "Pressure"
+          }
+        ],
+	"defaultAction": "include"
+  }
+

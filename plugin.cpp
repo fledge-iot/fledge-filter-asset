@@ -63,7 +63,8 @@ typedef enum
 	REMOVE,
 	FLATTEN,
 	DPMAP,
-	SPLIT
+	SPLIT,
+	INVALID_ACTION
 } action;
 
 struct AssetAction {
@@ -252,6 +253,16 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				actn = action::SPLIT;
 				splitAssetConfigure(document["rules"], splitAssets);
 			}
+			try
+			{
+				StringReplaceAll(asset_name,"\\\\","\\"); //unescape '\' from regular expression
+				std::regex re(asset_name); // Check if regex is valid
+			}
+			catch(const std::exception& e)
+			{
+				Logger::getLogger()->error("Invalid regular expression %s , will be ignored from further processing", asset_name.c_str());
+			}
+			
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
 			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
 		}
@@ -263,6 +274,27 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 	}
 	
 	return (PLUGIN_HANDLE)info;
+}
+
+/**
+ *  Retrieve AssetAction object for given assetName using regular expression match for assetname in the assetActionMap
+ *  @param assetActionMap
+ *  @param assetName
+ *  @return Return AssetAction object
+ */
+AssetAction getAssetAction(const std::map<std::string, AssetAction>& assetActionMap, const std::string& assetName)
+{
+	AssetAction noMatch;
+	noMatch.actn = action::INVALID_ACTION;
+	for (const auto& entry : assetActionMap)
+	{
+		std::regex regexPattern(entry.first);
+		if (std::regex_match(assetName, regexPattern))
+		{
+			return entry.second;  // Return the matched AssetAction object
+		}
+	}
+	return noMatch;  // Return if no match found
 }
 
 /**
@@ -388,16 +420,16 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 						      elem != readings.end();
 						      ++elem)
 	{
-		std::map<std::string, AssetAction>::iterator it = info->assetFilterConfig->find((*elem)->getAssetName());
+		AssetAction matchedAssetAction = getAssetAction( (*info->assetFilterConfig), (*elem)->getAssetName());
 		AssetAction *assetAction;
-		if (it == info->assetFilterConfig->end())
+		if (matchedAssetAction.actn == action::INVALID_ACTION)
 		{
 			//Logger::getLogger()->info("Unable to find asset_name '%s' in map, using default action %d", (*elem)->getAssetName().c_str(), info->defaultAction.actn);
 			assetAction = &(info->defaultAction);
 		}
 		else
 		{
-			assetAction = &((*info->assetFilterConfig)[(*elem)->getAssetName()]);
+			assetAction = &matchedAssetAction;
 			//Logger::getLogger()->info("Reading's asset_name=%s, matching map entry={%s, %d, %s}", 
 				//	(*elem)->getAssetName().c_str(), (*elem)->getAssetName().c_str(), assetAction->actn, assetAction->new_asset_name.c_str());
 		}
