@@ -64,7 +64,7 @@ typedef enum
 	FLATTEN,
 	DPMAP,
 	SPLIT,
-	INVALID_ACTION
+	DEFAULT_ACTION
 } action;
 
 struct AssetAction {
@@ -285,7 +285,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 AssetAction getAssetAction(const std::map<std::string, AssetAction>& assetActionMap, const std::string& assetName)
 {
 	AssetAction noMatch;
-	noMatch.actn = action::INVALID_ACTION;
+	noMatch.actn = action::DEFAULT_ACTION;
 	for (const auto& entry : assetActionMap)
 	{
 		std::regex regexPattern(entry.first);
@@ -422,7 +422,7 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 	{
 		AssetAction matchedAssetAction = getAssetAction( (*info->assetFilterConfig), (*elem)->getAssetName());
 		AssetAction *assetAction;
-		if (matchedAssetAction.actn == action::INVALID_ACTION)
+		if (matchedAssetAction.actn == action::DEFAULT_ACTION)
 		{
 			//Logger::getLogger()->info("Unable to find asset_name '%s' in map, using default action %d", (*elem)->getAssetName().c_str(), info->defaultAction.actn);
 			assetAction = &(info->defaultAction);
