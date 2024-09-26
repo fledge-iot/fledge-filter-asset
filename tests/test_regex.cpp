@@ -29,6 +29,7 @@ static const char *includeTest = "{ \"rules\" : [ { \"asset_name\" : \"Camera_\\
 static const char *renameTest = "{ \"rules\" : [ { \"asset_name\" : \"^Tank.*\", \"action\" : \"rename\", \"new_asset_name\" : \"new\" } ] }";
 static const char *dpmapTest = "{ \"rules\" : [ { \"asset_name\" : \".*Camera$\", \"action\" : \"datapointmap\", \"map\" : { \"ISO\" : \"Light Sensitivity\" } } ] }";
 static const char *removeTest = "{ \"rules\" : [ { \"asset_name\" : \".*\", \"action\" : \"remove\", \"datapoint\" : \"value\" } ] }";
+static const char *removeTest2 = "{ \"rules\" : [ { \"asset_name\" : \".*\", \"action\" : \"remove\", \"datapoint\" : \".*scale\" } ] }";
 
 // Regular expression checked for
 // .*: Matches 0 or more occurrences
@@ -295,4 +296,76 @@ TEST(ASSET_REGEX, remove)
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
 	
+}
+
+// Regular expression checked for
+// .*: Matches 0 or more occurrences
+TEST(ASSET_REGEX, remove2)
+{
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", removeTest2);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+
+	vector<Datapoint *> dpVec;
+	long testValue = 1000;
+	DatapointValue dpv1(testValue);
+	Datapoint *value1 = new Datapoint("value", dpv1);
+	dpVec.emplace_back(value1);
+
+	testValue = 1001;
+	DatapointValue dpv2(testValue);
+	Datapoint *value2 = new Datapoint("Pressure_scale", dpv2);
+	dpVec.emplace_back(value2);
+	readings->push_back(new Reading("Pressure", dpVec));
+
+	vector<Datapoint *> dpVec1;
+	testValue = 1140;
+	DatapointValue dpv3(testValue);
+	Datapoint *value3 = new Datapoint("Humidity_scale", dpv3);
+	dpVec1.emplace_back(value3);
+
+	testValue = 1200;
+	DatapointValue dpv4(testValue);
+	Datapoint *value4 = new Datapoint("value", dpv4);
+	dpVec1.emplace_back(value4);
+
+	readings->push_back(new Reading("Humidity", dpVec1));
+
+	ReadingSet *readingSet = new ReadingSet(readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 2);
+	Reading *out = results[0];
+	ASSERT_STREQ(out->getAssetName().c_str(), "Pressure");
+	// asset_name = ".*" in rule matches all the asset names.
+	// And datapoint = ".*scale" in rule matches all the datapoints which have scale word in last
+	// That's why datapoint "Pressure_scale" is removed
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	vector<Datapoint *> points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	Datapoint *outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "value");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1000);
+
+	// asset_name = ".*" in rule matches all the asset names.
+	// And datapoint = ".*scale" in rule matches all the datapoints which have scale word in last
+	// That's why datapoint "Humidity_scale" is removed
+	out = results[1];
+	ASSERT_STREQ(out->getAssetName().c_str(), "Humidity");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "value");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1200);
 }

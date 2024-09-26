@@ -257,11 +257,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			try
 			{
 				StringReplaceAll(asset_name,"\\\\","\\"); //unescape '\' from regular expression
+				StringReplaceAll(datapoint,"\\\\","\\"); //unescape '\' from regular expression
 				std::regex re(asset_name); // Check if regex is valid
+				std::regex re2(datapoint); // Check if regex is valid
 			}
-			catch(std::regex_error)
+			catch(const std::regex_error& e)
 			{
-				Logger::getLogger()->error("Invalid regular expression %s , will be ignored from further processing", asset_name.c_str());
+				Logger::getLogger()->error("Invalid regular expression %s , will be ignored from further processing", e.what());
 			}
 			
 			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
@@ -499,10 +501,11 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
                                 string dpvStr = dpv.getTypeStr();
                                 if (!datapoint.empty())
                                 {
-                                	if (datapoint == dp->getName())
+                                	std::regex regexPattern(datapoint);
+                                	if (std::regex_match(dp->getName(), regexPattern))
 					{
 						it = dps.erase(it);
-						Logger::getLogger()->info("Removing datapoint with name %s", datapoint.c_str());
+						Logger::getLogger()->info("Removing datapoint with name %s", dp->getName().c_str());
 						dpFound = true;
 					}
 					else
