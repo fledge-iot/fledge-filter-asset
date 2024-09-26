@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <set>
 #include <mutex>
+#include "string_utils.h"
 
 #define RULES "\\\"rules\\\" : []"
 #define FILTER_NAME "asset"
