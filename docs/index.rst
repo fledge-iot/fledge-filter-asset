@@ -333,8 +333,8 @@ Rules may be combined to perform multiple operations in a single stage of a pipe
 Regular Expression
 ~~~~~~~~~~~~~~~~~~
 
-Regular expression can be used for asset_name values in the JSON.
-In the following example, datapoint "Pressure" will be removed from all the assets; if exists.
+Regular expression can be used for asset_name values in the JSON; datapoint values with remove action can also use regular expression.
+In the following example, Any datapoint which starts with "Pressure" will be removed from all the assets; if exists.
 
 .. code-block:: JSON
 
@@ -344,7 +344,7 @@ In the following example, datapoint "Pressure" will be removed from all the asse
           {
               "asset_name": ".*",
               "action": "remove",
-              "datapoint": "Pressure"
+              "datapoint": "Pressure.*"
           }
         ],
 	"defaultAction": "include"
