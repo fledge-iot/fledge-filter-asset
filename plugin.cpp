@@ -260,14 +260,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				StringReplaceAll(datapoint,"\\\\","\\"); //unescape '\' from regular expression
 				std::regex re(asset_name); // Check if regex is valid
 				std::regex re2(datapoint); // Check if regex is valid
+				Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
+				(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
 			}
 			catch(const std::regex_error& e)
 			{
 				Logger::getLogger()->error("Invalid regular expression %s , will be ignored from further processing", e.what());
 			}
-			
-			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
 		}
 	}
 	else
