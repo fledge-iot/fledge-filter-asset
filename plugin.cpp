@@ -801,8 +801,20 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				actn = action::SPLIT;
 				splitAssetConfigure(document["rules"], splitAssets);
 			}
-			Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-			(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
+
+			try
+			{
+				StringReplaceAll(asset_name,"\\\\","\\"); //unescape '\' from regular expression
+				StringReplaceAll(datapoint,"\\\\","\\"); //unescape '\' from regular expression
+				std::regex re(asset_name); // Check if regex is valid
+				std::regex re2(datapoint); // Check if regex is valid
+				Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
+				(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
+			}
+			catch(const std::regex_error& e)
+			{
+				Logger::getLogger()->error("Invalid regular expression %s , will be ignored from further processing", e.what());
+			}
 		}
 		auto tmp = new std::map<std::string, AssetAction>;
 		tmp = info->assetFilterConfig;
