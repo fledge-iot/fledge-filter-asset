@@ -330,3 +330,96 @@ Rules may be combined to perform multiple operations in a single stage of a pipe
 	"defaultAction": "include"
   }
 
+Regular Expression
+~~~~~~~~~~~~~~~~~~
+
+Regular expression can be used for asset_name values in the JSON; datapoint values with remove action can also use regular expression.
+In the following example, Any datapoint which starts with "Pressure" will be removed from all the assets; if exists.
+
+.. code-block:: JSON
+
+  {
+	"rules": [
+      
+          {
+              "asset_name": ".*",
+              "action": "remove",
+              "datapoint": "Pressure.*"
+          }
+        ],
+	"defaultAction": "include"
+  }
+
+
+
+The filter supports the standard Linux regular expression syntax
+
+.. list-table::
+   :widths: 10 90
+   :header-rows: 1
+
+   * - Expression
+     - Description
+   * - \.
+     - Matches any character
+   * - \[a-z]
+     - Matches any characters in the range between the two given
+   * - \*
+     - Matches zero or more occurrences of the previous item
+   * - \+
+     - Matches one or more occurrence of the previous item
+   * - \?
+     - Matches zero or one occurrence of the previous item
+   * - ^
+     - Matches the start of the string
+   * - \$
+     - Matches the end of the string
+   * - \d
+     - Matches any digit (equivalent to [0-9])
+
+Examples
+~~~~~~~~
+
+To match a word, defined as one or more letters, we can use the regular expression
+
+.. code-block:: console
+
+   [A-Za-z].*
+
+If we wanted to match capitalised words only then we could use
+
+.. code-block:: Console
+
+   [A-Z].*
+   
+If we wanted to match only words starting with an *a* or *b* character there are a number of ways we could do this   
+
+.. code-block:: console
+
+    [ab][a-z].*
+or
+
+.. code-block:: console
+
+    a|b[a-z].*
+
+If we wanted to match the words staring with *Tank* we can use the ^ operator
+
+.. code-block:: console
+
+    ^Tank
+    
+If we wanted to match the words *spark* and *sparks* we can use the ? operator
+
+.. code-block:: console
+
+    spark.?
+    
+If we wanted to match the words *camera_1* we can use the d operator
+
+.. code-block:: console
+
+   camera_\\d
+   
+The above are a few examples of regular expressions that can be used, but serve to illustrate the most used operators that are available.
+
