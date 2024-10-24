@@ -397,6 +397,7 @@ If we wanted to match only words starting with an *a* or *b* character there are
 .. code-block:: console
 
     [ab][a-z].*
+
 or
 
 .. code-block:: console
