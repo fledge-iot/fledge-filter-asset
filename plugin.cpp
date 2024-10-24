@@ -65,6 +65,7 @@ typedef enum
 	FLATTEN,
 	DPMAP,
 	SPLIT,
+	SELECT,
 	DEFAULT_ACTION
 } action;
 
@@ -75,6 +76,7 @@ struct AssetAction {
 	string datapoint; // valid only in case of REMOVE
 	string type; // valid only in case of REMOVE
 	map<string, map< string, vector<string> > > split_assets; // valid only in case of SPLIT
+	vector<string> select;
 };
 
 typedef struct
@@ -192,6 +194,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			string new_asset_name = "";
 			map<string, string> dpmap;
 			map<string, map<string,vector<string>>> splitAssets;
+			vector<string> selection;
 			string datapoint;
 			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
@@ -254,6 +257,29 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				actn = action::SPLIT;
 				splitAssetConfigure(document["rules"], splitAssets);
 			}
+			else if (actionStr == "select")
+			{
+				actn = action::SELECT;
+				if (iter->HasMember("datapoints") && (*iter)["datapoints"].IsArray())
+				{
+					const Value& dps = (*iter)["datapoints"];
+					for (auto& dp : dps.GetArray())
+					{
+						selection.push_back(dp.GetString());
+					}
+				}
+				else
+				{
+					Logger::getLogger()->error("The select rule in the asset filter must have a datapoints item that is a list of datapoint names");
+					return NULL;
+				}
+
+			}
+			else
+			{
+				Logger::getLogger()->error("Unrecognised action '%s'", actionStr.c_str());
+				return NULL;
+			}
 			try
 			{
 				StringReplaceAll(asset_name,"\\\\","\\"); //unescape '\' from regular expression
@@ -261,7 +287,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				std::regex re(asset_name); // Check if regex is valid
 				std::regex re2(datapoint); // Check if regex is valid
 				Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-				(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
+				(*info->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets, selection};
 			}
 			catch(const std::regex_error& e)
 			{
@@ -663,6 +689,34 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 				}
 			}
 		}
+		else if (assetAction->actn == action::SELECT)
+		{
+			Reading *newReading = new Reading(**elem); // copy original Reading object
+                        // Iterate over the datapoints and remove unwanted
+                        vector<Datapoint *>& dps = newReading->getReadingData();
+			vector<string> rmList;
+			for (auto& dp : dps)
+                        {
+				string name = dp->getName();
+				bool found = false;
+                                for (auto& datapoint : assetAction->select)
+					if (datapoint.compare(name) == 0)
+						found = true;
+				if (!found)
+				{
+					rmList.push_back(name);
+				}
+                        }
+			for (auto name : rmList)
+			{
+					Datapoint *r =  newReading->removeDatapoint(name);
+					delete r;
+			}
+			if (newReading->getDatapointCount() > 0)
+	                        newReadings.push_back(newReading);
+			else
+				delete newReading;
+		}
 	}
 
 	delete (ReadingSet *)readingSet;
@@ -747,6 +801,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			string new_asset_name = "";
 			map<string, string> dpmap;
 			map<string, map<string,vector<string>>> splitAssets;
+			vector<string> selection;
 			string datapoint;
 			string dpType;
 			for (auto & c: actionStr) c = tolower(c);
@@ -801,6 +856,27 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				actn = action::SPLIT;
 				splitAssetConfigure(document["rules"], splitAssets);
 			}
+			else if (actionStr == "select")
+			{
+				actn = action::SELECT;
+				if (iter->HasMember("datapoints") && (*iter)["datapoints"].IsArray())
+				{
+					const Value& dps = (*iter)["datapoints"];
+					for (auto& dp : dps.GetArray())
+					{
+						selection.push_back(dp.GetString());
+					}
+				}
+				else
+				{
+					Logger::getLogger()->error("The select rule in the asset filter must have a datapoints item that is a list of datapoint names");
+				}
+
+			}
+			else
+			{
+				Logger::getLogger()->error("Unrecognised action '%s'", actionStr.c_str());
+			}
 
 			try
 			{
@@ -809,7 +885,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				std::regex re(asset_name); // Check if regex is valid
 				std::regex re2(datapoint); // Check if regex is valid
 				Logger::getLogger()->info("Parse asset filter config, Adding to assetFilterConfig map: {%s, %d, %s}", asset_name.c_str(), actn, new_asset_name.c_str());
-				(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets};
+				(*newInfo->assetFilterConfig)[asset_name] = {actn, new_asset_name, dpmap, datapoint, dpType, splitAssets, selection};
 			}
 			catch(const std::regex_error& e)
 			{
