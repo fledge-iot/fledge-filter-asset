@@ -700,8 +700,13 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 				string name = dp->getName();
 				bool found = false;
                                 for (auto& datapoint : assetAction->select)
+				{
 					if (datapoint.compare(name) == 0)
+					{
 						found = true;
+						break;
+					}
+				}
 				if (!found)
 				{
 					rmList.push_back(name);
