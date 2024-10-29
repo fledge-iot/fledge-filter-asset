@@ -733,7 +733,7 @@ TEST(ASSET, select)
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);
-	// test_1 asset have two data points power and current
+	// test asset should have two data points voltage and current
 	ASSERT_EQ(results[0]->getDatapointCount(), 2);
 	ASSERT_EQ(results[0]->getAssetName(), "test");
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getName(), "voltage");
@@ -774,7 +774,7 @@ TEST(ASSET, select_missing)
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);
-	// test_1 asset have two data points power and current
+	// test asset should have one data point voltage
 	ASSERT_EQ(results[0]->getDatapointCount(), 1);
 	ASSERT_EQ(results[0]->getAssetName(), "test");
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getName(), "voltage");
