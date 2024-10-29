@@ -254,6 +254,10 @@ We could accomplish the removal of the *Z* datapoint by using the remove action,
 
 However the *select* action has the added benefit if other datapoints were to appear in the pipeline they would be blocked by this action.
 
+.. note::
+
+   If a reading is missing one or more of the datapoints in the select actions *datapoints* list then only those datapoints that exist in the reading and the *datapoints* list will be passed onwards in the pipeline. No error or warning will be raised by the asset filter for missing datapoints.
+
 Removing Image Data From Pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
