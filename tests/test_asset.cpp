@@ -48,6 +48,7 @@ static const char *action_split_without_key = "{ \"rules\" : [ { \"asset_name\" 
 
 static const char *action_split_with_extra_DP = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"split\" , \"split\": { \"test_1\": [\"Floor1\", \"Floor2\"] } } ] }";
 
+static const char *action_select = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"select\" , \"datapoints\": [ \"voltage\", \"current\"] } ] }";
 
 TEST(ASSET, exclude)
 {
@@ -700,4 +701,83 @@ TEST(ASSET, assetsplit_3)
 	ASSERT_EQ(results[0]->getAssetName(), "test_1");
 	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getName(), "Floor1");
 	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getData().toInt(), 30);
+}
+
+TEST(ASSET, select)
+{
+	// Test the select action
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", action_select);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> readings;
+	long voltage = 30;
+	double current = 0.120;
+	double power = voltage * current;
+
+	DatapointValue dpv1(voltage);
+	DatapointValue dpv2(current);
+	DatapointValue dpv3(power);
+	std::vector<Datapoint *> dataPoints;
+	dataPoints.push_back(new Datapoint("voltage", dpv1));
+	dataPoints.push_back(new Datapoint("current", dpv2));
+	dataPoints.push_back(new Datapoint("power", dpv3));
+	readings.push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(&readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 1);
+	// test asset should have two data points voltage and current
+	ASSERT_EQ(results[0]->getDatapointCount(), 2);
+	ASSERT_EQ(results[0]->getAssetName(), "test");
+	ASSERT_EQ(results[0]->getDatapoint("voltage")->getName(), "voltage");
+	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().toInt(), 30);
+	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().getTypeStr(), "INTEGER");
+	ASSERT_EQ(results[0]->getDatapoint("current")->getName(), "current");
+	ASSERT_EQ(results[0]->getDatapoint("current")->getData().toDouble(), 0.12);
+	ASSERT_EQ(results[0]->getDatapoint("current")->getData().getTypeStr(), "FLOAT");
+}
+
+TEST(ASSET, select_missing)
+{
+	// Test the select action when not all data points are present
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", action_select);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> readings;
+	long voltage = 30;
+	double wattage = 450;
+	double power = voltage / wattage;
+
+	DatapointValue dpv1(voltage);
+	DatapointValue dpv2(wattage);
+	DatapointValue dpv3(power);
+	std::vector<Datapoint *> dataPoints;
+	dataPoints.push_back(new Datapoint("voltage", dpv1));
+	dataPoints.push_back(new Datapoint("wattage", dpv2));
+	dataPoints.push_back(new Datapoint("power", dpv3));
+	readings.push_back(new Reading("test", dataPoints));
+	ReadingSet *readingSet = new ReadingSet(&readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 1);
+	// test asset should have one data point voltage
+	ASSERT_EQ(results[0]->getDatapointCount(), 1);
+	ASSERT_EQ(results[0]->getAssetName(), "test");
+	ASSERT_EQ(results[0]->getDatapoint("voltage")->getName(), "voltage");
+	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().toInt(), 30);
+	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().getTypeStr(), "INTEGER");
 }
