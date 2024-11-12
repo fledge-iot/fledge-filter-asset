@@ -39,6 +39,7 @@ static const char *removeTest_2 = "{ \"rules\" : [ { \"asset_name\" : \"test\", 
 static const char *removeTest_3 = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"remove\", \"type\" : \"number\" } ] }";
 
 static const char *removeTest_4 = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"remove\", \"type\" : \"NON-NUMERIC\" } ] }";
+static const char *removeMultiple = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"remove\", \"datapoint\" : \"DP1\" }, { \"asset_name\" : \"test\", \"action\" : \"remove\", \"datapoint\" : \"DP3\" } ] }";
 
 static const char *flattenDatapointTest = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"flatten\" } ] }";
 
@@ -780,4 +781,50 @@ TEST(ASSET, select_missing)
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getName(), "voltage");
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().toInt(), 30);
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().getTypeStr(), "INTEGER");
+}
+
+// Test Multiple Rules on same asset
+TEST(ASSET, MultipleRule)
+{
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", removeMultiple);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+
+	long testValue = 1000;
+	DatapointValue dpv(testValue);
+	std::vector<Datapoint *> dpVec;
+	dpVec.emplace_back(new Datapoint("DP1", dpv));
+	//readings->push_back(new Reading("test", value));
+
+	testValue = 1001;
+	DatapointValue dpv1(testValue);
+	dpVec.emplace_back(new Datapoint("DP2", dpv1));
+	//readings->push_back(new Reading("test", value1));
+
+	testValue = 1140;
+	DatapointValue dpv2(testValue);
+	dpVec.emplace_back(new Datapoint("DP3", dpv2));
+	readings->push_back(new Reading("test", dpVec));
+
+	ReadingSet *readingSet = new ReadingSet(readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *>results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 1);
+	Reading *out = results[0];
+	ASSERT_STREQ(out->getAssetName().c_str(), "test");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	vector<Datapoint *> points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	Datapoint *outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "DP2");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1001);
 }
