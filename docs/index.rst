@@ -78,9 +78,9 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
        * - Nested 
          - DP_DICT
 
-         .. note:
+    .. note::
 
-         Datapoint types are case insensitive.
+        Datapoint types are case insensitive.
 
   - **select**: Select the datapoints that should be forwarded by the filter to the next stage of the pipeline. The action will be passed a list of datapoint names that will be sent forwards.
 
