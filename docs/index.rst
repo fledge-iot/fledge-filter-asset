@@ -247,7 +247,7 @@ We could accomplish the removal of the *Z* datapoint by using the remove action,
                   {
                      "asset_name" : "vibration",
                      "action"     : "remove",
-                     "datapoints" : "Z"
+                     "datapoint"  : "Z"
                   }
                 ]
    }
