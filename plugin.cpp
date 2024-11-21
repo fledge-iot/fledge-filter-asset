@@ -308,18 +308,68 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
  *  Retrieve AssetAction object for given assetName using regular expression match for assetname in the assetActionMap
  *  @param assetActionMap
  *  @param assetName
- *  @return Return collection of the AssetAction object
+ *  @return Return collection of the asset name and associated AssetAction object
  */
 
-std::vector<AssetAction> getAssetAction(const std::vector<std::pair<std::string, AssetAction>>& assetActionMap, const std::string& assetName)
+std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vector<std::pair<std::string, AssetAction>>& assetActionMap, std::string& assetName)
 {
-	std::vector<AssetAction> matchedAction;
-	for (const auto& entry : assetActionMap)
+    int order = 0;
+
+	// Hold the asset with rule order as per the rules JSON to ensure ordering of rules execution
+	std::vector<std::pair<std::string,int>> activeAssets;
+	activeAssets.push_back({assetName, order});
+	std::vector<std::pair<std::string, AssetAction>> matchedAction;
+
+	// In case of split action, multiple active assets can be created. check assetAction Map for each active asset
+	while (!activeAssets.empty())
 	{
-		std::regex regexPattern(entry.first);
-		if (std::regex_match(assetName, regexPattern))
+		assetName = activeAssets[0].first;
+		// Start searching for active asset as per the order in the rules JSON in the plugin configuration
+		for (auto it = assetActionMap.begin() + activeAssets[0].second; it != assetActionMap.end(); ++it)
 		{
-			matchedAction.push_back(entry.second);
+			std::regex regexPattern((*it).first);
+			if (std::regex_match(assetName, regexPattern))
+			{
+				// Find the pair with the matching key
+				auto found = std::find_if(activeAssets.begin(), activeAssets.end(), [&assetName](const std::pair<std::string, int>& pair)
+				{
+					return pair.first == assetName;
+				});
+				if (found == activeAssets.end())
+				{
+					continue; // Skip if not in active scope
+				}
+
+				if ((*it).second.actn == action::RENAME)
+				{
+					order++;
+					activeAssets.push_back({(*it).second.new_asset_name, order});
+					matchedAction.push_back({assetName, (*it).second});
+				}
+				else if ((*it).second.actn == action::SPLIT)
+				{
+					order++;
+					matchedAction.push_back({assetName, (*it).second});
+					for (const auto& asset : (*it).second.split_assets)
+					{
+						for (const auto& splitAsset : asset.second)
+						{
+							std::string splitAssetName = splitAsset.first;
+							activeAssets.push_back({splitAssetName, order});
+						}
+					}
+				}
+				else
+				{
+					// Handle other actions
+					order++;
+					matchedAction.push_back({assetName, (*it).second});
+				}
+			}
+		}
+		if (!activeAssets.empty())
+		{
+			activeAssets.erase(activeAssets.begin()); // assetActionMap has been parsed for current active asset
 		}
 	}
 	return matchedAction;  // Return all matched action
@@ -419,22 +469,35 @@ void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapo
  * apply rule
  *
  * @param newReadings	vector of readings to be passed to next filter in the chain
- * @param reading	Reading to apply rule
+ * @param rdng	Reading to apply rule
  * @param assetAction AssetAction strucure for the rule
  * @param configCatName	filter name
- * @param isMultiple	true if multiple rules are being applied on a same asset
  */
-void applyRule(vector<Reading *>& newReadings, Reading* reading, AssetAction *& assetAction, std::string& configCatName, bool isMultiple=false)
+void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& assetAction, std::string& configCatName, std::string& assetName)
 {
 	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "NESTED", "ARRAY", "2D_ARRAY", "USER_ARRAY"};
-	if(isMultiple && !newReadings.empty())
+	bool isMultiple = false;
+	Reading* reading = new Reading(rdng);
+
+	// Get the asset to apply the rule on existing asset if any
+	if (!newReadings.empty())
 	{
-		reading = new Reading(*newReadings[newReadings.size()-1]);
-		newReadings.erase(newReadings.end()-1);
+		auto found = std::find_if(newReadings.rbegin(), newReadings.rend(), [&assetName](Reading* &r)
+		{
+			return r->getAssetName() == assetName;
+		});
+
+		if (found == newReadings.rend())
+		{
+			return;
+		}
+		int index = std::distance(found, newReadings.rend())-1;
+		reading = new Reading(*newReadings[index]);
+		newReadings.erase(found.base() - 1);
 	}
 	if(assetAction->actn == action::INCLUDE)
 	{
-		newReadings.push_back(new Reading(*reading)); // copy original Reading object
+		newReadings.push_back(reading);
 		AssetTracker *tracker = AssetTracker::getAssetTracker();
 		if (tracker)
 		{
@@ -452,9 +515,9 @@ void applyRule(vector<Reading *>& newReadings, Reading* reading, AssetAction *& 
 	}
 	else if(assetAction->actn == action::RENAME)
 	{
-		Reading *newRdng = new Reading(*reading); // copy original Reading object
-		newRdng->setAssetName(assetAction->new_asset_name);
-		newReadings.push_back(newRdng);
+
+		reading->setAssetName(assetAction->new_asset_name);
+		newReadings.push_back(reading);
 		AssetTracker *tracker = AssetTracker::getAssetTracker();
 		if (tracker)
 		{
@@ -464,9 +527,8 @@ void applyRule(vector<Reading *>& newReadings, Reading* reading, AssetAction *& 
 	}
 	else if (assetAction->actn == action::DPMAP)
 	{
-		Reading *newReading = new Reading(*reading); // copy original Reading object
 		// Iterate over the datapoints and change the names
-		vector<Datapoint *> dps = newReading->getReadingData();
+		vector<Datapoint *> dps = reading->getReadingData();
 		for (auto it = dps.begin(); it != dps.end(); ++it)
 		{
 			Datapoint *dp = *it;
@@ -476,13 +538,12 @@ void applyRule(vector<Reading *>& newReadings, Reading* reading, AssetAction *& 
 				dp->setName(i->second);
 			}
 		}
-		newReadings.push_back(newReading);
+		newReadings.push_back(reading);
 	}
 	else if (assetAction->actn == action::REMOVE)
 	{
-		Reading *newReading = new Reading(*reading); // copy original Reading object
 		// Iterate over the datapoints and change the names
-		vector<Datapoint *>& dps = newReading->getReadingData();
+		vector<Datapoint *>& dps = reading->getReadingData();
 		bool dpFound = false;
 		bool typeFound = false;
 		string datapoint;
@@ -572,7 +633,7 @@ void applyRule(vector<Reading *>& newReadings, Reading* reading, AssetAction *& 
 		if (!type.empty() && !typeFound)
 			Logger::getLogger()->info("Datapoint with type %s not found for removal", type.c_str());
 
-		newReadings.push_back(newReading);
+		newReadings.push_back(reading);
 	}
 	else if (assetAction->actn == action::FLATTEN)
 	{
@@ -660,9 +721,9 @@ void applyRule(vector<Reading *>& newReadings, Reading* reading, AssetAction *& 
 	}
 	else if (assetAction->actn == action::SELECT)
 	{
-		Reading *newReading = new Reading(*reading); // copy original Reading object
 		// Iterate over the datapoints and remove unwanted
-		vector<Datapoint *>& dps = newReading->getReadingData();
+		//Reading *newReading = new Reading(*reading); // copy original Reading object
+		vector<Datapoint *>& dps = reading->getReadingData();
 		vector<string> rmList;
 		for (auto& dp : dps)
 		{
@@ -683,13 +744,13 @@ void applyRule(vector<Reading *>& newReadings, Reading* reading, AssetAction *& 
 		}
 		for (auto name : rmList)
 		{
-				Datapoint *r =  newReading->removeDatapoint(name);
+				Datapoint *r =  reading->removeDatapoint(name);
 				delete r;
 		}
-		if (newReading->getDatapointCount() > 0)
-						newReadings.push_back(newReading);
+		if (reading->getDatapointCount() > 0)
+			newReadings.push_back(reading);
 		else
-			delete newReading;
+			delete reading;
 	}
 }
 /**
@@ -723,23 +784,24 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 						      elem != readings.end();
 						      ++elem)
 	{
-		std::vector<AssetAction> matchedAssetActions = getAssetAction( (*info->assetFilterConfig), (*elem)->getAssetName());
-		
+		std::string assetName = (*elem)->getAssetName();
+		std::vector<std::pair<std::string, AssetAction>> matchedAssetActions = getAssetAction( (*info->assetFilterConfig), assetName);
+
 		AssetAction* assetAction;
-		bool isSameAsset = false;
 		if (matchedAssetActions.empty())
 		{
 			assetAction = &(info->defaultAction);
-			applyRule(newReadings, *elem, assetAction, info->configCatName, isSameAsset);
+			applyRule(newReadings, **elem, assetAction, info->configCatName, assetName);
 		}
-		
+
+		std::vector<std::string> activeAssets;
+		std::vector<std::string> processedAssets;
+		activeAssets.push_back(assetName);
 		for (auto& matchedAssetAction : matchedAssetActions)
 		{
-			assetAction = &matchedAssetAction;
-			applyRule(newReadings, *elem, assetAction, info->configCatName, isSameAsset);
-			isSameAsset = true;
+			assetAction = &matchedAssetAction.second;
+			applyRule(newReadings, **elem, assetAction, info->configCatName, matchedAssetAction.first);
 		}
-		
 	}
 	
 	delete (ReadingSet *)readingSet;
