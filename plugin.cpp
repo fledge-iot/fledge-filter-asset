@@ -472,15 +472,16 @@ void flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapo
  * @param rdng	Reading to apply rule
  * @param assetAction AssetAction strucure for the rule
  * @param configCatName	filter name
+ * @param isNewReading false if multiple rules are being applied on same asset, true otherwise
  */
-void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& assetAction, std::string& configCatName, std::string& assetName)
+void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& assetAction, std::string& configCatName, std::string& assetName, bool isNewReading)
 {
 	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "NESTED", "ARRAY", "2D_ARRAY", "USER_ARRAY"};
 	bool isMultiple = false;
 	Reading* reading = new Reading(rdng);
 
 	// Get the asset to apply the rule on existing asset if any
-	if (!newReadings.empty())
+	if (!newReadings.empty() && !isNewReading)
 	{
 		auto found = std::find_if(newReadings.rbegin(), newReadings.rend(), [&assetName](Reading* &r)
 		{
@@ -788,10 +789,11 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		std::vector<std::pair<std::string, AssetAction>> matchedAssetActions = getAssetAction( (*info->assetFilterConfig), assetName);
 
 		AssetAction* assetAction;
+		bool isNewReading = true;
 		if (matchedAssetActions.empty())
 		{
 			assetAction = &(info->defaultAction);
-			applyRule(newReadings, **elem, assetAction, info->configCatName, assetName);
+			applyRule(newReadings, **elem, assetAction, info->configCatName, assetName, isNewReading);
 		}
 
 		std::vector<std::string> activeAssets;
@@ -800,7 +802,8 @@ void plugin_ingest(PLUGIN_HANDLE *handle,
 		for (auto& matchedAssetAction : matchedAssetActions)
 		{
 			assetAction = &matchedAssetAction.second;
-			applyRule(newReadings, **elem, assetAction, info->configCatName, matchedAssetAction.first);
+			applyRule(newReadings, **elem, assetAction, info->configCatName, matchedAssetAction.first, isNewReading);
+			isNewReading = false;
 		}
 	}
 	
