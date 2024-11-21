@@ -359,6 +359,12 @@ std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vecto
 						}
 					}
 				}
+				else if ((*it).second.actn == action::EXCLUDE)
+				{
+					activeAssets.clear();
+					matchedAction.push_back({assetName, (*it).second});
+					break;
+				}
 				else
 				{
 					// Handle other actions
