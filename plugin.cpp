@@ -305,13 +305,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 }
 
 /**
- *  Retrieve AssetAction object for given assetName using regular expression match for assetname in the assetActionMap
- *  @param assetActionMap
+ *  Retrieve AssetAction object for given assetName using regular expression match for assetname in the assetActions collection
+ *  @param assetActions
  *  @param assetName
  *  @return Return collection of the asset name and associated AssetAction object
  */
 
-std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vector<std::pair<std::string, AssetAction>>& assetActionMap, std::string& assetName)
+std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vector<std::pair<std::string, AssetAction>>& assetActions, std::string& assetName)
 {
     int order = 0;
 
@@ -325,7 +325,7 @@ std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vecto
 	{
 		assetName = activeAssets[0].first;
 		// Start searching for active asset as per the order in the rules JSON in the plugin configuration
-		for (auto it = assetActionMap.begin() + activeAssets[0].second; it != assetActionMap.end(); ++it)
+		for (auto it = assetActions.begin() + activeAssets[0].second; it != assetActions.end(); ++it)
 		{
 			std::regex regexPattern((*it).first);
 			if (std::regex_match(assetName, regexPattern))
@@ -375,7 +375,7 @@ std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vecto
 		}
 		if (!activeAssets.empty())
 		{
-			activeAssets.erase(activeAssets.begin()); // assetActionMap has been parsed for current active asset
+			activeAssets.erase(activeAssets.begin()); // assetActions has been parsed for current active asset
 		}
 	}
 	return matchedAction;  // Return all matched action
@@ -394,6 +394,12 @@ void splitAssetConfigure(Value &rules, map<string, map<string,vector<string>>> &
 	{
 		string newAssetName = {};
 		string asset_name = (*itr)["asset_name"].GetString();
+
+		// Skip further processing for actions other than split
+		if (itr->HasMember("action") && strcmp((*itr)["action"].GetString(),"split") != 0)
+		{
+			continue;
+		}
 		// split key exists
 		if (itr->HasMember("split"))
 		{
