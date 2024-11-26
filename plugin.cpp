@@ -88,7 +88,7 @@ typedef struct
 	std::mutex 	mutex;
 } FILTER_INFO;
 
-void splitAssetConfigure(Value &rules, map<string, map<string,vector<string>>> &splitAssets);
+void splitAssetConfigure(const Value &rule, map<string, map<string,vector<string>>> &splitAssets);
 /**
  * Return the information about this plugin
  */
@@ -255,7 +255,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			else if (actionStr == "split")
 			{
 				actn = action::SPLIT;
-				splitAssetConfigure(document["rules"], splitAssets);
+				splitAssetConfigure((*iter), splitAssets);
 			}
 			else if (actionStr == "select")
 			{
@@ -382,63 +382,54 @@ std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vecto
 }
 
 /**
- * splitAssetConfigure populate splitAssets parameter from rules JSON for split action
+ * splitAssetConfigure populate splitAssets parameter from JSON rule for split action
  *
- * @param rules		rules JSON
+ * @param rule		JSON rule
  * @param splitAssets	Container to be populated with split asset name and datapoints
  */
 
-void splitAssetConfigure(Value &rules, map<string, map<string,vector<string>>> &splitAssets)
+void splitAssetConfigure(const Value &rule, map<string, map<string,vector<string>>> &splitAssets)
 {
-	for (auto itr = rules.Begin(); itr != rules.End(); ++itr)
-	{
-		string newAssetName = {};
-		string asset_name = (*itr)["asset_name"].GetString();
+	string newAssetName = {};
+	string asset_name = rule["asset_name"].GetString();
 
-		// Skip further processing for actions other than split
-		if (itr->HasMember("action") && strcmp((*itr)["action"].GetString(),"split") != 0)
+	if (rule.HasMember("split"))
+	{
+		if (!rule["split"].IsObject())
 		{
-			continue;
+			Logger::getLogger()->error( "split key for asset %s is not an object", asset_name.c_str() );
+			return;
 		}
-		// split key exists
-		if (itr->HasMember("split"))
+
+		map<string, vector<string>> newSplitAsset;
+		// Iterate over split key
+		for (auto itr2 = rule["split"].MemberBegin(); itr2 != rule["split"].MemberEnd(); itr2++)
 		{
-			if (!(*itr)["split"].IsObject())
+			vector<string> splitAssetDataPoints;
+			splitAssetDataPoints.clear();
+			newAssetName = itr2->name.GetString();
+			if (!itr2->value.IsArray())
 			{
-				Logger::getLogger()->error( "split key for asset %s is not an object", asset_name.c_str() );
+				Logger::getLogger()->error( "split asset %s does not have list of data points", newAssetName.c_str());
 				continue;
 			}
-
-			map<string, vector<string>> newSplitAsset;
-			// Iterate over split key
-			for (auto itr2 = (*itr)["split"].MemberBegin(); itr2 != (*itr)["split"].MemberEnd(); itr2++)
+			// Iterate over different split asset datapoints list
+			for (auto itr3 = itr2->value.Begin(); itr3 != itr2->value.End(); itr3++)
 			{
-				vector<string> splitAssetDataPoints;
-				splitAssetDataPoints.clear();
-				newAssetName = itr2->name.GetString();
-				if (!itr2->value.IsArray())
-				{
-					Logger::getLogger()->error( "split asset %s does not have list of data points", newAssetName.c_str());
-					continue;
-				}
-				// Iterate over different split asset datapoints list
-				for (auto itr3 = itr2->value.Begin(); itr3 != itr2->value.End(); itr3++)
-				{
-					string dpName =  itr3->GetString();
-					splitAssetDataPoints.push_back(dpName);
-				}
-				// Populate current split asset datapoints
-				newSplitAsset.insert(std::make_pair(newAssetName,splitAssetDataPoints));
+				string dpName =  itr3->GetString();
+				splitAssetDataPoints.push_back(dpName);
 			}
-			// Populate split asset data for configured asset
-			splitAssets.insert(std::make_pair(asset_name,newSplitAsset));
+			// Populate current split asset datapoints
+			newSplitAsset.insert(std::make_pair(newAssetName,splitAssetDataPoints));
 		}
-		else
-		{
-			// Populate split asset data for configured asset
-			map<string, vector<string>> newSplitAsset;
-			splitAssets.insert(std::make_pair(asset_name,newSplitAsset));
-		}
+		// Populate split asset data for configured asset
+		splitAssets.insert(std::make_pair(asset_name,newSplitAsset));
+	}
+	else
+	{
+		// Populate split asset data for configured asset
+		map<string, vector<string>> newSplitAsset;
+		splitAssets.insert(std::make_pair(asset_name,newSplitAsset));
 	}
 }
 
@@ -954,7 +945,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			else if (actionStr == "split")
 			{
 				actn = action::SPLIT;
-				splitAssetConfigure(document["rules"], splitAssets);
+				splitAssetConfigure((*iter), splitAssets);
 			}
 			else if (actionStr == "select")
 			{
