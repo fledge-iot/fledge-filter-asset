@@ -32,7 +32,7 @@ Asset filters are added in the same way as any other filters.
 Asset Rules
 -----------
 
-The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Actions can be one of
+The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Rules on an asset will be executed in the exact order defined in the JSON array. Actions can be one of
 
   - **include**: The asset should be forwarded to the output of the filter
 

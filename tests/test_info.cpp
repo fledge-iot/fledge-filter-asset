@@ -11,14 +11,14 @@ extern "C" {
 	PLUGIN_INFORMATION *plugin_info();
 };
 
-TEST(DELTA_INFO, PluginInfo)
+TEST(ASSET_INFO, PluginInfo)
 {
 	PLUGIN_INFORMATION *info = plugin_info();
 	ASSERT_STREQ(info->name, "asset");
 	ASSERT_EQ(info->type, PLUGIN_TYPE_FILTER);
 }
 
-TEST(DELTA_INFO, PluginInfoConfigParse)
+TEST(ASSET_INFO, PluginInfoConfigParse)
 {
 	PLUGIN_INFORMATION *info = plugin_info();
 	Document doc;
