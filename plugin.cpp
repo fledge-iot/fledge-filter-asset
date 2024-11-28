@@ -88,7 +88,7 @@ typedef struct
 	std::mutex 	mutex;
 } FILTER_INFO;
 
-void splitAssetConfigure(const Value &rule, map<string, map<string,vector<string>>> &splitAssets);
+bool splitAssetConfigure(const Value &rule, map<string, map<string,vector<string>>> &splitAssets);
 /**
  * Return the information about this plugin
  */
@@ -133,7 +133,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 		if (document.Parse(filter->getConfig().getValue("config").c_str()).HasParseError())
 		{
 			Logger::getLogger()->error("Unable to parse filter config: '%s'", filter->getConfig().getValue("config").c_str());
-			return NULL;
+			return (PLUGIN_HANDLE)info;
 		}
 		
 		info->defaultAction = {action::INCLUDE, ""};
@@ -156,8 +156,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				info->defaultAction.actn = action::FLATTEN;
 			else
 			{
-				Logger::getLogger()->error("Parse asset filter config, unable to parse defaultAction value: '%s'", filter->getConfig().getValue("config").c_str());
-				return NULL;
+				Logger::getLogger()->error("Unsupported default action '%s' defined for asset filter. The default action will be to include all assets", actionStr.c_str());
 			}
 			Logger::getLogger()->info("Parse asset filter config, default action for unmentioned asset names=%d", info->defaultAction.actn);
 		}
@@ -165,28 +164,26 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 		// Check for "rules" main property
 		if (!document.HasMember("rules"))
 		{
-			Logger::getLogger()->error("Parse asset filter config, unable to parse "
-						   "the 'rules' top level property in '%s'",
-						   filter->getConfig().getValue("config").c_str());
-			return NULL;
+			Logger::getLogger()->error("The asset filter configuration is missing the rules item");
+			return (PLUGIN_HANDLE)info;
 		}
 		Value &rules = document["rules"];
 		if (!rules.IsArray())
 		{
-			Logger::getLogger()->error("Parse asset filter config, rules array is missing : '%s'", filter->getConfig().getValue("config").c_str());
-			return NULL;
+			Logger::getLogger()->error("The rules item in the asset filter configuration should be an array of rules objects. the filter will have no effect.");
+			return (PLUGIN_HANDLE)info;
 		}
 		for (Value::ConstValueIterator iter = rules.Begin(); iter != rules.End(); ++iter)
 		{
 			if (!iter->IsObject())
 			{
-				Logger::getLogger()->error("Parse asset filter config, each entry in rules array must be an object: '%s'", filter->getConfig().getValue("config").c_str());
-				return NULL;
+				Logger::getLogger()->error("Parse asset filter config, each entry in rules array must be an object. The filter will have no effect.");
+				continue;
 			}
 			if (!iter->HasMember("asset_name") || !iter->HasMember("action"))
 			{
 				Logger::getLogger()->error("Parse asset filter config, asset_name/action is not found in the entry: '%s'", filter->getConfig().getValue("config").c_str());
-				return NULL;
+				continue;
 			}
 			
 			string asset_name = (*iter)["asset_name"].GetString();
@@ -210,8 +207,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 					new_asset_name = (*iter)["new_asset_name"].GetString();
 				else
 				{
-					Logger::getLogger()->error("Parse asset filter config, new_asset_name is not found in the RENAME entry: '%s'", filter->getConfig().getValue("config").c_str());
-					return NULL;
+					Logger::getLogger()->error("The rename rule of the asset filter must have a new_asset_name item defined. The rule for asset '%s' will be ignored.", asset_name.c_str());
+					continue;
 				}
 			}
 			else if (actionStr == "datapointmap")
@@ -225,8 +222,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				}
 				else
 				{
-					Logger::getLogger()->error("Parse asset filter config, map is not found in the DatapointMap entry: '%s'", filter->getConfig().getValue("config").c_str());
-					return NULL;
+					Logger::getLogger()->error("The datapointmap rule of the asset filter must have a map item defined. The rule for asset '%s' will be ignored.", asset_name.c_str());
+					continue;
 				}
 			}
 			else if (actionStr == "remove")
@@ -240,12 +237,17 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
                                         	datapoint = (*iter)["datapoint"].GetString();
 					}
 				}
-                                if (iter->HasMember("type"))
+				else if (iter->HasMember("type"))
 				{
 					if ((*iter)["type"].IsString())
 					{
                                         	dpType = (*iter)["type"].GetString();
 					}
+				}
+				else
+				{
+					Logger::getLogger()->error("The remove rule of the asset filter should have either a datapoint or a type defined. The rule for asset '%s' will be ignored.", asset_name.c_str());
+					continue;
 				}
 			}
 			else if (actionStr == "flatten")
@@ -255,7 +257,11 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			else if (actionStr == "split")
 			{
 				actn = action::SPLIT;
-				splitAssetConfigure((*iter), splitAssets);
+				if (!splitAssetConfigure((*iter), splitAssets))
+				{
+					Logger::getLogger()->error("The split rule for asset '%s' will be ignored", asset_name.c_str());
+					continue;
+				}
 			}
 			else if (actionStr == "select")
 			{
@@ -270,15 +276,15 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 				}
 				else
 				{
-					Logger::getLogger()->error("The select rule in the asset filter must have a datapoints item that is a list of datapoint names");
-					return NULL;
+					Logger::getLogger()->error("The select rule in the asset filter must have a datapoints item that is a list of datapoint names. The rule for asset '%s' will be ignored.", asset_name.c_str());
+					continue;
 				}
 
 			}
 			else
 			{
 				Logger::getLogger()->error("Unrecognised action '%s'", actionStr.c_str());
-				return NULL;
+				continue;
 			}
 			try
 			{
@@ -298,7 +304,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 	else
 	{
 		Logger::getLogger()->error("No config provided for asset filter, cannot proceed");
-		return NULL;
 	}
 	
 	return (PLUGIN_HANDLE)info;
@@ -388,7 +393,7 @@ std::vector<std::pair<std::string, AssetAction>> getAssetAction(const std::vecto
  * @param splitAssets	Container to be populated with split asset name and datapoints
  */
 
-void splitAssetConfigure(const Value &rule, map<string, map<string,vector<string>>> &splitAssets)
+bool splitAssetConfigure(const Value &rule, map<string, map<string,vector<string>>> &splitAssets)
 {
 	string newAssetName = {};
 	string asset_name = rule["asset_name"].GetString();
@@ -398,7 +403,7 @@ void splitAssetConfigure(const Value &rule, map<string, map<string,vector<string
 		if (!rule["split"].IsObject())
 		{
 			Logger::getLogger()->error( "split key for asset %s is not an object", asset_name.c_str() );
-			return;
+			return false;
 		}
 
 		map<string, vector<string>> newSplitAsset;
@@ -416,8 +421,15 @@ void splitAssetConfigure(const Value &rule, map<string, map<string,vector<string
 			// Iterate over different split asset datapoints list
 			for (auto itr3 = itr2->value.Begin(); itr3 != itr2->value.End(); itr3++)
 			{
-				string dpName =  itr3->GetString();
-				splitAssetDataPoints.push_back(dpName);
+				if (itr3->IsString())
+				{
+					string dpName =  itr3->GetString();
+					splitAssetDataPoints.push_back(dpName);
+				}
+				else
+				{
+					Logger::getLogger()->error("Asset name in split list for asset '%s' is not a string", asset_name.c_str());
+				}
 			}
 			// Populate current split asset datapoints
 			newSplitAsset.insert(std::make_pair(newAssetName,splitAssetDataPoints));
@@ -431,6 +443,7 @@ void splitAssetConfigure(const Value &rule, map<string, map<string,vector<string
 		map<string, vector<string>> newSplitAsset;
 		splitAssets.insert(std::make_pair(asset_name,newSplitAsset));
 	}
+	return true;
 }
 
 /**
@@ -862,8 +875,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				newInfo->defaultAction.actn = action::FLATTEN;
 			else
 			{
-				Logger::getLogger()->error("Parse asset filter config, unable to parse defaultAction value: '%s'", filter->getConfig().getValue("config").c_str());
-				return;
+				Logger::getLogger()->error("Unsupported default action '%s' defined for asset filter. The default action will be to include all assets", actionStr.c_str());
 			}
 			Logger::getLogger()->info("Parse asset filter config, default action for unmentioned asset names=%d", newInfo->defaultAction.actn);
 		}
@@ -879,12 +891,12 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			if (!iter->IsObject())
 			{
 				Logger::getLogger()->error("Parse asset filter config, each entry in rules array must be an object: '%s'", filter->getConfig().getValue("config").c_str());
-				return;
+				continue;
 			}
 			if (!iter->HasMember("asset_name") || !iter->HasMember("action"))
 			{
-				Logger::getLogger()->error("Parse asset filter config, asset_name/action is not found in the entry: '%s'", filter->getConfig().getValue("config").c_str());
-				return;
+				Logger::getLogger()->error("All rules in the asset fitler must have an asset_name and an action item defined. Incomplete rule will be ignored.");
+				continue;
 			}
 			
 			string asset_name = (*iter)["asset_name"].GetString();
@@ -908,8 +920,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 					new_asset_name = (*iter)["new_asset_name"].GetString();
 				else
 				{
-					Logger::getLogger()->error("Parse asset filter config, new_asset_name is not found in the RENAME entry: '%s'", filter->getConfig().getValue("config").c_str());
-					return;
+					Logger::getLogger()->error("The rename rule must define a new_asset_name item. The rename rule for asset '%s' will be ignored", asset_name.c_str());
+					continue;
 				}
 			}
 			else if (actionStr == "datapointmap")
@@ -923,8 +935,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				}
 				else
 				{
-					Logger::getLogger()->error("Parse asset filter config, map is not found in the DatapointMap entry: '%s'", filter->getConfig().getValue("config").c_str());
-					return;
+					Logger::getLogger()->error("The datapointmap rule must have a map item defined. The datapointmap rule for asset '%s' will be ignored.", asset_name.c_str());
+					continue;
 				}
 			}
 			else if(actionStr == "remove")
@@ -933,9 +945,13 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 
 				if (iter->HasMember("datapoint"))
                                         datapoint = (*iter)["datapoint"].GetString();
-
-				if (iter->HasMember("type"))
+				else if (iter->HasMember("type"))
                                         dpType = (*iter)["type"].GetString();
+				else
+				{
+					Logger::getLogger()->error("The remove rule of the asset filter should have either a datapoint or a type defined within it. The remove rule for asset '%s' will be ignored.", asset_name.c_str());
+					continue;
+				}
 
 			}
 			else if (actionStr == "flatten")
@@ -945,7 +961,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			else if (actionStr == "split")
 			{
 				actn = action::SPLIT;
-				splitAssetConfigure((*iter), splitAssets);
+				if (!splitAssetConfigure((*iter), splitAssets))
+					continue;
 			}
 			else if (actionStr == "select")
 			{
@@ -960,7 +977,8 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 				}
 				else
 				{
-					Logger::getLogger()->error("The select rule in the asset filter must have a datapoints item that is a list of datapoint names");
+					Logger::getLogger()->error("The select rule in the asset filter must have a datapoints item that is a list of datapoint names. The select rule for asset '%s' will be ignored.", asset_name.c_str());
+					continue;
 				}
 
 			}
@@ -980,7 +998,7 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			}
 			catch(const std::regex_error& e)
 			{
-				Logger::getLogger()->error("Invalid regular expression %s , will be ignored from further processing", e.what());
+				Logger::getLogger()->error("Invalid regular expression %s, will be ignored from further processing", e.what());
 			}
 		}
 		auto tmp = new std::vector<std::pair<std::string, AssetAction>>;
