@@ -533,12 +533,13 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 	else if(assetAction->actn == action::RENAME)
 	{
 
+		std::string old_asset_name = reading->getAssetName();
 		reading->setAssetName(assetAction->new_asset_name);
 		newReadings.push_back(reading);
 		AssetTracker *tracker = AssetTracker::getAssetTracker();
 		if (tracker)
 		{
-			tracker->addAssetTrackingTuple(configCatName, reading->getAssetName(), string("Filter"));
+			tracker->addAssetTrackingTuple(configCatName, old_asset_name, string("Filter"));
 			tracker->addAssetTrackingTuple(configCatName, assetAction->new_asset_name, string("Filter"));
 		}
 	}
