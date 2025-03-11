@@ -27,10 +27,16 @@ extern "C"
 							  OUTPUT_HANDLE *outHandle,
 							  OUTPUT_STREAM output);
 
+	void plugin_reconfigure(void *handle, const string& newConfig);
+
 	extern void Handler(void *handle, READINGSET *readings);
 };
 
 static const char *noRules = QUOTE({ });
+
+static const char *goodConfig = QUOTE({ "rules": [ {"asset_name": "Pressure", "action": "rename", "new_asset_name": "Vibration" }]});
+
+static const char *missingRulesItem = QUOTE({ "asset_name": "Pressure", "action": "rename", "new_asset_name": "Humidity" });
 
 static const char *badDefault = QUOTE({ "rules": [ { "asset_name": "system/cpuUsage_all", "action": "rename", "new_name": "foo" } ], "defaultAction" : "rubbish" });
 
@@ -133,6 +139,54 @@ TEST(ASSET_BAD_CONFIG, NoRules)
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+}
+
+// Test the reconfiguration without rules item in JSON
+TEST(ASSET_BAD_CONFIG, MissingRulesItem)
+{
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", goodConfig);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void* handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+
+	long testValue = 1000;
+	DatapointValue dpv(testValue);
+	Datapoint *value = new Datapoint("P1", dpv);
+	readings->push_back(new Reading("Pressure", value));
+
+	ReadingSet *readingSet = new ReadingSet(readings);
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 1);
+	Reading *out = results[0];
+	ASSERT_STREQ(out->getAssetName().c_str(), "Vibration"); // Asset name changed successfully
+
+	// reconfigure with missing rules item throws the exception
+
+	try
+	{
+		plugin_reconfigure(handle, missingRulesItem);
+	}
+	catch(const std::exception& e)
+	{
+		ASSERT_STREQ(e.what(), "Configuration category JSON is malformed");
+	}
+
+	// Ingest after reconfigure
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results1 = outReadings->getAllReadings();
+	ASSERT_EQ(results1.size(), 1);
+	Reading *out1 = results1[0];
+	// Asset name changed because new filter action is ignored due to bad config after reconfigure
+	ASSERT_STREQ(out1->getAssetName().c_str(), "Vibration");
 }
 
 // Test the handling of a configuration with a ruel that has an unsupported action
