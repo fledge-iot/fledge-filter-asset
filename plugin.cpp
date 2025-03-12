@@ -856,6 +856,13 @@ void plugin_reconfigure(PLUGIN_HANDLE *handle, const string& newConfig)
 			return;
 		}
 		
+		// Do not parse JSON further if rules array is not there.
+		if (!document.HasMember("rules"))
+		{
+			Logger::getLogger()->error("The asset filter configuration is missing the rules item : %s",filter->getConfig().getValue("config").c_str());
+			return;
+		}
+
 		newInfo->defaultAction = {action::INCLUDE, ""};
 		Value::MemberIterator defaultAction = document.FindMember("defaultAction");
 	    if(defaultAction == document.MemberEnd() || !defaultAction->value.IsString())
