@@ -506,6 +506,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 
 		if (found == newReadings.rend())
 		{
+			delete reading;
 			return;
 		}
 		int index = std::distance(found, newReadings.rend())-1;
@@ -529,6 +530,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 		{
 			tracker->addAssetTrackingTuple(configCatName, reading->getAssetName(), string("Filter"));
 		}
+		delete reading;
 	}
 	else if(assetAction->actn == action::RENAME)
 	{
@@ -673,6 +675,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 			}
 		}
 		newReadings.emplace_back(new Reading(reading->getAssetName(), flattenDatapoints));
+		delete reading;
 	}
 	else if (assetAction->actn == action::SPLIT)
 	{
@@ -735,6 +738,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 					}
 				}
 			}
+			delete reading;
 		}
 	}
 	else if (assetAction->actn == action::SELECT)
