@@ -39,6 +39,12 @@
 
 using namespace std;
 
+template<typename T, typename... Args>
+std::unique_ptr<T> makeUnique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
 /**
  * The Filter plugin interface
  */
@@ -494,7 +500,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 {
 	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "NESTED", "ARRAY", "2D_ARRAY", "USER_ARRAY"};
 	bool isMultiple = false;
-	Reading* reading = new Reading(rdng);
+	std::unique_ptr<Reading> reading = makeUnique<Reading>(rdng);
 
 	// Get the asset to apply the rule on existing asset if any
 	if (!newReadings.empty() && !isNewReading)
@@ -506,16 +512,15 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 
 		if (found == newReadings.rend())
 		{
-			delete reading;
 			return;
 		}
 		int index = std::distance(found, newReadings.rend())-1;
-		reading = new Reading(*newReadings[index]);
+		reading = makeUnique<Reading>(*newReadings[index]);
 		newReadings.erase(found.base() - 1);
 	}
 	if(assetAction->actn == action::INCLUDE)
 	{
-		newReadings.push_back(reading);
+		newReadings.push_back(reading.release());
 		AssetTracker *tracker = AssetTracker::getAssetTracker();
 		if (tracker)
 		{
@@ -530,14 +535,13 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 		{
 			tracker->addAssetTrackingTuple(configCatName, reading->getAssetName(), string("Filter"));
 		}
-		delete reading;
 	}
 	else if(assetAction->actn == action::RENAME)
 	{
 
 		std::string old_asset_name = reading->getAssetName();
 		reading->setAssetName(assetAction->new_asset_name);
-		newReadings.push_back(reading);
+		newReadings.push_back(reading.release());
 		AssetTracker *tracker = AssetTracker::getAssetTracker();
 		if (tracker)
 		{
@@ -558,7 +562,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 				dp->setName(i->second);
 			}
 		}
-		newReadings.push_back(reading);
+		newReadings.push_back(reading.release());
 	}
 	else if (assetAction->actn == action::REMOVE)
 	{
@@ -653,7 +657,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 		if (!type.empty() && !typeFound)
 			Logger::getLogger()->info("Datapoint with type %s not found for removal", type.c_str());
 
-		newReadings.push_back(reading);
+		newReadings.push_back(reading.release());
 	}
 	else if (assetAction->actn == action::FLATTEN)
 	{
@@ -675,7 +679,6 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 			}
 		}
 		newReadings.emplace_back(new Reading(reading->getAssetName(), flattenDatapoints));
-		delete reading;
 	}
 	else if (assetAction->actn == action::SPLIT)
 	{
@@ -738,7 +741,6 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 					}
 				}
 			}
-			delete reading;
 		}
 	}
 	else if (assetAction->actn == action::SELECT)
@@ -764,15 +766,17 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 				rmList.push_back(name);
 			}
 		}
+
 		for (auto name : rmList)
 		{
 				Datapoint *r =  reading->removeDatapoint(name);
 				delete r;
 		}
+
 		if (reading->getDatapointCount() > 0)
-			newReadings.push_back(reading);
-		else
-			delete reading;
+		{
+			newReadings.push_back(reading.release());
+		}
 	}
 }
 /**
