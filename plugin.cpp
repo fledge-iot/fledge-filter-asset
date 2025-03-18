@@ -499,6 +499,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 	// Get the asset to apply the rule on existing asset if any
 	if (!newReadings.empty() && !isNewReading)
 	{
+		delete reading;
 		auto found = std::find_if(newReadings.rbegin(), newReadings.rend(), [&assetName](Reading* &r)
 		{
 			return r->getAssetName() == assetName;
@@ -506,7 +507,6 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 
 		if (found == newReadings.rend())
 		{
-			delete reading;
 			return;
 		}
 		int index = std::distance(found, newReadings.rend())-1;
