@@ -499,6 +499,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 	// Get the asset to apply the rule on existing asset if any
 	if (!newReadings.empty() && !isNewReading)
 	{
+		delete reading;
 		auto found = std::find_if(newReadings.rbegin(), newReadings.rend(), [&assetName](Reading* &r)
 		{
 			return r->getAssetName() == assetName;
@@ -529,6 +530,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 		{
 			tracker->addAssetTrackingTuple(configCatName, reading->getAssetName(), string("Filter"));
 		}
+		delete reading;
 	}
 	else if(assetAction->actn == action::RENAME)
 	{
@@ -673,6 +675,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 			}
 		}
 		newReadings.emplace_back(new Reading(reading->getAssetName(), flattenDatapoints));
+		delete reading;
 	}
 	else if (assetAction->actn == action::SPLIT)
 	{
@@ -735,6 +738,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 					}
 				}
 			}
+			delete reading;
 		}
 	}
 	else if (assetAction->actn == action::SELECT)
