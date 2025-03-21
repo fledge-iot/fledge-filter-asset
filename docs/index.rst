@@ -32,7 +32,7 @@ Asset filters are added in the same way as any other filters.
 Asset Rules
 -----------
 
-The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Actions can be one of
+The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Rules on an asset will be executed in the exact order defined in the JSON array. Actions can be one of
 
   - **include**: The asset should be forwarded to the output of the filter
 
@@ -78,7 +78,11 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
        * - Nested 
          - DP_DICT
 
-    Note: Datapoint types are case insensitive.
+    .. note::
+
+        Datapoint types are case insensitive.
+
+  - **select**: Select the datapoints that should be forwarded by the filter to the next stage of the pipeline. The action will be passed a list of datapoint names that will be sent forwards.
 
   - **split**: This action will allow to split an asset into multiple assets.
 
@@ -216,6 +220,43 @@ Suppose we have a vibration sensor that gives us three datapoints for the vibrat
                   }
                 ]
    }
+
+Passing On A Subset Of Datapoints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Using the same vibration sensor as above, but we only want to include the *X* and *Y* components of vibration. We can filter out the other components, and any other datapoints that might appear in the pipeline by using the *select* action
+
+.. code-block:: JSON
+
+   {
+      "rules" : [
+                  {
+                     "asset_name" : "vibration",
+                     "action"     : "select",
+                     "datapoints" : [ "X", "Y" ]
+                  }
+                ]
+   }
+
+We could accomplish the removal of the *Z* datapoint by using the remove action,
+
+.. code-block:: JSON
+
+   {
+      "rules" : [
+                  {
+                     "asset_name" : "vibration",
+                     "action"     : "remove",
+                     "datapoint"  : "Z"
+                  }
+                ]
+   }
+
+However the *select* action has the added benefit if other datapoints were to appear in the pipeline they would be blocked by this action.
+
+.. note::
+
+   If a reading is missing one or more of the datapoints in the select actions *datapoints* list then only those datapoints that exist in the reading and the *datapoints* list will be passed onwards in the pipeline. No error or warning will be raised by the asset filter for missing datapoints.
 
 Removing Image Data From Pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
