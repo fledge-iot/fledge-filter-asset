@@ -26,6 +26,7 @@ extern "C"
 	PLUGIN_HANDLE plugin_init(ConfigCategory *config,
 							  OUTPUT_HANDLE *outHandle,
 							  OUTPUT_STREAM output);
+	void plugin_shutdown(PLUGIN_HANDLE handle);
 
 	void plugin_reconfigure(void *handle, const string& newConfig);
 
@@ -83,10 +84,15 @@ TEST(ASSET_BAD_CONFIG, BadDefaultAction)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test the handling of a bad (non object) rule
@@ -109,10 +115,15 @@ TEST(ASSET_BAD_CONFIG, BadRule)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test the handling of a configuration without any rules
@@ -135,10 +146,15 @@ TEST(ASSET_BAD_CONFIG, NoRules)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test the reconfiguration without rules item in JSON
@@ -161,6 +177,7 @@ TEST(ASSET_BAD_CONFIG, MissingRulesItem)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -178,6 +195,19 @@ TEST(ASSET_BAD_CONFIG, MissingRulesItem)
 	{
 		ASSERT_STREQ(e.what(), "Configuration category JSON is malformed");
 	}
+	delete outReadings;
+
+	// Recreate the readings as the original RadingSet has
+	// been freed by the previous plugin_ingest
+	readings = new vector<Reading *>;
+
+	testValue = 1000;
+	DatapointValue dpv2(testValue);
+	value = new Datapoint("P1", dpv2);
+	readings->push_back(new Reading("Pressure", value));
+
+	readingSet = new ReadingSet(readings);
+	delete readings;
 
 	// Ingest after reconfigure
 	plugin_ingest(handle, (READINGSET *)readingSet);
@@ -187,6 +217,10 @@ TEST(ASSET_BAD_CONFIG, MissingRulesItem)
 	Reading *out1 = results1[0];
 	// Asset name changed because new filter action is ignored due to bad config after reconfigure
 	ASSERT_STREQ(out1->getAssetName().c_str(), "Vibration");
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test the handling of a configuration with a ruel that has an unsupported action
@@ -209,10 +243,15 @@ TEST(ASSET_BAD_CONFIG, BadAction)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test the handling of a configuration a rule with a missing action
@@ -235,10 +274,15 @@ TEST(ASSET_BAD_CONFIG, MissingAction)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test the handling of a configuration without an asset in the rule
@@ -261,13 +305,18 @@ TEST(ASSET_BAD_CONFIG, MissingAsset)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
-// Test handlign of misonfigured rename action
+// Test handling of misconfigured rename action
 TEST(ASSET_BAD_CONFIG, RenameNoNewName)
 {
 	PLUGIN_INFORMATION *info = plugin_info();
@@ -287,10 +336,15 @@ TEST(ASSET_BAD_CONFIG, RenameNoNewName)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test handling of misconfigured select action
@@ -313,10 +367,15 @@ TEST(ASSET_BAD_CONFIG, SelectAssets)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test handling of misconfigured datapoiimntmap action
@@ -339,10 +398,15 @@ TEST(ASSET_BAD_CONFIG, DatapointMapMissing)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test handling of misconfigured remove action
@@ -365,10 +429,15 @@ TEST(ASSET_BAD_CONFIG, RemoveMissing)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test handling of misconfigured split action, the value of the split attribute is not an object
@@ -391,10 +460,15 @@ TEST(ASSET_BAD_CONFIG, SplitNotObject)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test handling of misconfigured split action, the value of the split asset is not an list
@@ -417,10 +491,15 @@ TEST(ASSET_BAD_CONFIG, SplitNotList)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test handling of misconfigured split action, the value of the datapoitn naem is not a string
@@ -443,8 +522,13 @@ TEST(ASSET_BAD_CONFIG, SplitListType)
 	readings->push_back(new Reading("Pressure", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);  
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }

@@ -20,6 +20,7 @@ extern "C"
 	PLUGIN_HANDLE plugin_init(ConfigCategory *config,
 							  OUTPUT_HANDLE *outHandle,
 							  OUTPUT_STREAM output);
+	void plugin_shutdown(PLUGIN_HANDLE handle);
 
 	extern void Handler(void *handle, READINGSET *readings);
 };
@@ -60,6 +61,7 @@ TEST(ASSET_MULTIPLE_RULE, RemoveTwoDPs)
 	readings->push_back(new Reading("test", dpVec));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
@@ -73,6 +75,10 @@ TEST(ASSET_MULTIPLE_RULE, RemoveTwoDPs)
 	ASSERT_STREQ(outdp->getName().c_str(), "DP2");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1001);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test Multiple Rules on same asset - Rename an asset after excluding it
@@ -95,10 +101,15 @@ TEST(ASSET_MULTIPLE_RULE, RenameAfterExclude)
 	readings->push_back(new Reading("test", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 0); // No further action can be performed on the excluded PR
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test Multiple Rules on same asset - Exclude one of the splitted asset
@@ -134,6 +145,7 @@ TEST(ASSET_MULTIPLE_RULE, ExcludeSplittedAsset)
 	readings->push_back(new Reading("test", dpVec));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
@@ -152,6 +164,10 @@ TEST(ASSET_MULTIPLE_RULE, ExcludeSplittedAsset)
 	ASSERT_STREQ(outdp->getName().c_str(), "DP4");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1500);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test Multiple Rules on same asset - 1. Rename an asset, 2. Rename datapoint using old asset name
@@ -174,12 +190,17 @@ TEST(ASSET_MULTIPLE_RULE, RenameDatapointUsingOldAsset)
 	readings->push_back(new Reading("test", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);
 	ASSERT_STREQ(results[0]->getAssetName().c_str(), "NewAsset"); // Asset name changed from test to NewAsset
 	ASSERT_STREQ((results[0]->getReadingData()[0])->getName().c_str(), "test"); // Datapoint name didn't change using old asset
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Test Multiple Rules on same asset - 1. Rename an asset, 2. Rename datapoint using new asset name
@@ -202,11 +223,16 @@ TEST(ASSET_MULTIPLE_RULE, RenameDatapointUsingNewAsset)
 	readings->push_back(new Reading("test", value));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);
 	ASSERT_STREQ(results[0]->getAssetName().c_str(), "NewAsset"); // Asset name changed from test to NewAsset
 	ASSERT_STREQ((results[0]->getReadingData()[0])->getName().c_str(), "NewDP"); // Datapoint name changed using new asset
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 

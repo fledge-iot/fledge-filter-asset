@@ -19,6 +19,7 @@ extern "C" {
 	PLUGIN_HANDLE plugin_init(ConfigCategory* config,
 			  OUTPUT_HANDLE *outHandle,
 			  OUTPUT_STREAM output);
+	void plugin_shutdown(PLUGIN_HANDLE handle);
 	int called = 0;
 
 	void Handler(void *handle, READINGSET *readings)
@@ -79,6 +80,7 @@ TEST(ASSET, exclude)
 	readings->push_back(new Reading("test1", value2));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
@@ -92,6 +94,10 @@ TEST(ASSET, exclude)
 	ASSERT_STREQ(outdp->getName().c_str(), "test");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 
 }
 
@@ -124,6 +130,7 @@ TEST(ASSET, include)
 	readings->push_back(new Reading("test1", value2));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 
@@ -139,6 +146,9 @@ TEST(ASSET, include)
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, rename)
@@ -170,6 +180,7 @@ TEST(ASSET, rename)
 	readings->push_back(new Reading("test1", value2));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 
@@ -205,6 +216,9 @@ TEST(ASSET, rename)
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, datapointmap)
@@ -236,6 +250,7 @@ TEST(ASSET, datapointmap)
 	readings->push_back(new Reading("test1", value2));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 
@@ -271,6 +286,9 @@ TEST(ASSET, datapointmap)
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, remove)
@@ -302,6 +320,7 @@ TEST(ASSET, remove)
         readings->push_back(new Reading("test", value2));
 
         ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
         plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
@@ -332,6 +351,9 @@ TEST(ASSET, remove)
         points = out->getReadingData();
         ASSERT_EQ(points.size(), 0);
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 TEST(ASSET, remove_2)
 {
@@ -362,6 +384,7 @@ TEST(ASSET, remove_2)
         readings->push_back(new Reading("test", value2));
 
         ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
         plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *>results = outReadings->getAllReadings();
@@ -384,6 +407,9 @@ TEST(ASSET, remove_2)
         points = out->getReadingData();
         ASSERT_EQ(points.size(), 0);
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, remove_3)
@@ -415,6 +441,7 @@ TEST(ASSET, remove_3)
         readings->push_back(new Reading("test", value2));
 
         ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
         plugin_ingest(handle, (READINGSET *)readingSet);
 
         vector<Reading *>results = outReadings->getAllReadings();
@@ -435,6 +462,10 @@ TEST(ASSET, remove_3)
         ASSERT_STREQ(out->getAssetName().c_str(), "test");
         ASSERT_EQ(out->getDatapointCount(), 0);
         points = out->getReadingData();
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, remove_4)
@@ -466,6 +497,7 @@ TEST(ASSET, remove_4)
         readings->push_back(new Reading("test", value2));
 
         ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
         plugin_ingest(handle, (READINGSET *)readingSet);
 
         vector<Reading *>results = outReadings->getAllReadings();
@@ -480,8 +512,6 @@ TEST(ASSET, remove_4)
         ASSERT_STREQ(outdp->getName().c_str(), "test");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
         ASSERT_EQ(outdp->getData().toInt(), 1000);
-
-
 
         out = results[1];
         ASSERT_STREQ(out->getAssetName().c_str(), "test");
@@ -503,6 +533,9 @@ TEST(ASSET, remove_4)
  	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
         ASSERT_EQ(outdp->getData().toInt(), 1140);
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, flattenDatapointWithoutNesting)
@@ -525,12 +558,17 @@ TEST(ASSET, flattenDatapointWithoutNesting)
 	readings->push_back(new Reading("test", NestedReadingJSON));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	ASSERT_EQ(results.size(), 1);
 	ASSERT_EQ(results[0]->getAssetName(), "test");
 	ASSERT_EQ(results[0]->getDatapoint("pressure")->getName(), "pressure");
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, flattenDatapointDic)
@@ -553,6 +591,7 @@ TEST(ASSET, flattenDatapointDic)
 	readings->push_back(new Reading("test", NestedReadingJSON));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -562,6 +601,10 @@ TEST(ASSET, flattenDatapointDic)
 	ASSERT_EQ(results[0]->getDatapoint("pressure_floor1")->getName(), "pressure_floor1");
 	ASSERT_EQ(results[0]->getDatapoint("pressure_floor2")->getName(), "pressure_floor2");
 	ASSERT_EQ(results[0]->getDatapoint("pressure_floor3")->getName(), "pressure_floor3");
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, flattenDatapointDictInsideDic)
@@ -584,6 +627,7 @@ TEST(ASSET, flattenDatapointDictInsideDic)
 	readings->push_back(new Reading("test", NestedReadingJSON));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -595,6 +639,10 @@ TEST(ASSET, flattenDatapointDictInsideDic)
 	ASSERT_EQ(results[0]->getDatapoint("pressure_floor3_room1")->getName(), "pressure_floor3_room1");
 	ASSERT_EQ(results[0]->getDatapoint("pressure_floor3_room2")->getName(), "pressure_floor3_room2");
 	ASSERT_EQ(results[0]->getDatapoint("pressure_floor3_room3")->getName(), "pressure_floor3_room3");
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, assetsplit_1)
@@ -634,6 +682,10 @@ TEST(ASSET, assetsplit_1)
 	ASSERT_EQ(results[1]->getAssetName(), "test_2");
 	ASSERT_EQ(results[1]->getDatapoint("Floor1")->getName(), "Floor1");
 	ASSERT_EQ(results[1]->getDatapoint("Floor1")->getData().toInt(), 30);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, assetsplit_2)
@@ -671,6 +723,10 @@ TEST(ASSET, assetsplit_2)
 	ASSERT_EQ(results[1]->getAssetName(), "test_Floor2");
 	ASSERT_EQ(results[1]->getDatapoint("Floor2")->getName(), "Floor2");
 	ASSERT_EQ(results[1]->getDatapoint("Floor2")->getData().toInt(), 34);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, assetsplit_3)
@@ -701,6 +757,10 @@ TEST(ASSET, assetsplit_3)
 	ASSERT_EQ(results[0]->getAssetName(), "test_1");
 	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getName(), "Floor1");
 	ASSERT_EQ(results[0]->getDatapoint("Floor1")->getData().toInt(), 30);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, select)
@@ -742,6 +802,10 @@ TEST(ASSET, select)
 	ASSERT_EQ(results[0]->getDatapoint("current")->getName(), "current");
 	ASSERT_EQ(results[0]->getDatapoint("current")->getData().toDouble(), 0.12);
 	ASSERT_EQ(results[0]->getDatapoint("current")->getData().getTypeStr(), "FLOAT");
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 TEST(ASSET, select_missing)
@@ -780,4 +844,8 @@ TEST(ASSET, select_missing)
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getName(), "voltage");
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().toInt(), 30);
 	ASSERT_EQ(results[0]->getDatapoint("voltage")->getData().getTypeStr(), "INTEGER");
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
