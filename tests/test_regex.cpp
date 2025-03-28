@@ -20,6 +20,7 @@ extern "C"
 	PLUGIN_HANDLE plugin_init(ConfigCategory *config,
 							  OUTPUT_HANDLE *outHandle,
 							  OUTPUT_STREAM output);
+	void plugin_shutdown(PLUGIN_HANDLE handle);
 
 	extern void Handler(void *handle, READINGSET *readings);
 };
@@ -62,12 +63,16 @@ TEST(ASSET_REGEX, exclude)
 	readings->push_back(new Reading("PressurePump", value2));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
 	// asset_name = "Pressure.*" in rule matches both the assets Pressure and PressurePump. So both the assets have been excluded
 	ASSERT_EQ(results.size(), 0);  
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Regular expression checked for
@@ -101,6 +106,7 @@ TEST(ASSET_REGEX, include)
 	readings->push_back(new Reading("Camera_1", value2));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -115,6 +121,10 @@ TEST(ASSET_REGEX, include)
 	ASSERT_STREQ(outdp->getName().c_str(), "Floor1_Feed");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Regular expression checked for
@@ -148,6 +158,7 @@ TEST(ASSET_REGEX, rename)
 	readings->push_back(new Reading("PressureTank", value2));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -181,6 +192,10 @@ TEST(ASSET_REGEX, rename)
 	ASSERT_STREQ(outdp->getName().c_str(), "temperature");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Regular expression checked for
@@ -209,6 +224,7 @@ TEST(ASSET_REGEX, datapointmap)
 	readings->push_back(new Reading("Camera_site1", value1));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -236,6 +252,9 @@ TEST(ASSET_REGEX, datapointmap)
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1001);
 
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Regular expression checked for
@@ -271,6 +290,7 @@ TEST(ASSET_REGEX, remove)
 	readings->push_back(new Reading("Humidity", value3));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -296,6 +316,9 @@ TEST(ASSET_REGEX, remove)
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1140);
 	
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }
 
 // Regular expression checked for
@@ -339,6 +362,7 @@ TEST(ASSET_REGEX, remove2)
 	readings->push_back(new Reading("Humidity", dpVec1));
 
 	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
 	plugin_ingest(handle, (READINGSET *)readingSet);
 
 	vector<Reading *> results = outReadings->getAllReadings();
@@ -368,4 +392,8 @@ TEST(ASSET_REGEX, remove2)
 	ASSERT_STREQ(outdp->getName().c_str(), "value");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1200);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
 }

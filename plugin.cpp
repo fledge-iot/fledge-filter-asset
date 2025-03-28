@@ -494,12 +494,11 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 {
 	static const std::set<std::string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_ARRAY", "DP_DICT", "DP_LIST", "IMAGE", "DATABUFFER", "2D_FLOAT_ARRAY", "NUMBER", "NON-NUMERIC", "NESTED", "ARRAY", "2D_ARRAY", "USER_ARRAY"};
 	bool isMultiple = false;
-	Reading* reading = new Reading(rdng);
+	Reading* reading;
 
 	// Get the asset to apply the rule on existing asset if any
 	if (!newReadings.empty() && !isNewReading)
 	{
-		delete reading;
 		auto found = std::find_if(newReadings.rbegin(), newReadings.rend(), [&assetName](Reading* &r)
 		{
 			return r->getAssetName() == assetName;
@@ -510,8 +509,14 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 			return;
 		}
 		int index = std::distance(found, newReadings.rend())-1;
-		reading = new Reading(*newReadings[index]);
+		// we are about to erase the refrence to the reading so pull it
+		// out of the vector and use the original rather than allocate a copy
+		reading = newReadings[index];
 		newReadings.erase(found.base() - 1);
+	}
+	else
+	{
+       		reading = new Reading(rdng);
 	}
 	if(assetAction->actn == action::INCLUDE)
 	{
@@ -562,7 +567,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 	}
 	else if (assetAction->actn == action::REMOVE)
 	{
-		// Iterate over the datapoints and change the names
+		// Iterate over the datapoints and remove matching datapoints
 		vector<Datapoint *>& dps = reading->getReadingData();
 		bool dpFound = false;
 		bool typeFound = false;
@@ -582,6 +587,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 				{
 					it = dps.erase(it);
 					Logger::getLogger()->info("Removing datapoint with name %s", dp->getName().c_str());
+					delete dp;
 					dpFound = true;
 				}
 				else
@@ -607,6 +613,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 				{
 					it = dps.erase(it);
 					Logger::getLogger()->info("Removing datapoint with type %s", type.c_str());
+					delete dp;
 					typeFound = true;
 				}
 				else if (type == "NUMBER")
@@ -614,6 +621,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 					if (dpvStr == "FLOAT" || dpvStr == "INTEGER")
 					{
 						it = dps.erase(it);
+						delete dp;
 						Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
 						typeFound = true;
 					}
@@ -626,6 +634,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 					{
 						it = dps.erase(it);
 						Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+						delete dp;
 						typeFound = true;
 					}
 					else
@@ -637,6 +646,7 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 					{
 						it = dps.erase(it);
 						Logger::getLogger()->info("Removing datapoint with type %s", dpvStr.c_str());
+						delete dp;
 						typeFound = true;
 					}
 					else
@@ -773,6 +783,12 @@ void applyRule(vector<Reading *>& newReadings, Reading& rdng, AssetAction *& ass
 			newReadings.push_back(reading);
 		else
 			delete reading;
+	}
+	else
+	{
+		// Unimplementation action
+		Logger::getLogger()->error("Internal error: Unimplemented action in asset filter, %d", assetAction->actn);
+		delete reading;
 	}
 }
 /**
