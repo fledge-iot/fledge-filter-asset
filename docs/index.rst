@@ -29,20 +29,293 @@ Asset filters are added in the same way as any other filters.
 
   - Enable the plugin and click *Done* to activate it
 
-Asset Rules
------------
+Rules
+-----
 
-The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Rules on an asset will be executed in the exact order defined in the JSON array. Actions can be one of
+The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Rules on an asset will be executed in the exact order defined in the JSON array.
 
-  - **include**: The asset should be forwarded to the output of the filter
+There are a number of different rules that may be applied to the readings, each rule will perform a specific action on the reading and will be applied based upon a match with the asset name within the reading. The rules are configured using a JSON object to define the operation of the rule, each object contains the asset match criteria and the action name. In addition there are a set of parameters that are passed to the rule.
 
-  - **exclude**: The asset should not be forwarded to the output of the filter
+The common parameters are
 
-  - **rename**: Change the name of the asset. In this case a third property is included in the rule object, "new_asset_name"
+  - **asset_name** - Either a literal asset name to match or a regular expression.
 
-  - **remove**: This action will be passed a datapoint name as an argument or a datapoint type. A datapoint with that name will be removed from the asset as it passed through the asset filter. If a type is passed then all data points of that type will be removed.
+  - **action** - The action the rule will take.
 
-    .. list-table:: Supported data types for "remove" action
+The sections below document the details of each of the different rules and the parameters supported by those actions.
+
+Include Rule
+############
+
+This rule takes no extra parameters, if the asset name matches that of the reading then the reading will be included in the output.
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump417",
+       "action"     : "include"
+   }
+
+Exclude Rule
+############
+
+This rule takes no extra parameters, if the asset name matches that of the reading then the reading will be excluded in the output.
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump417",
+       "action"     : "exclude"
+   }
+
+Rename Rule
+###########
+
+The rename rule takes an extra parameter which is the new name of the asset that will be used for any matching reading.
+
+.. code-block:: JSON
+
+   {
+       "asset_name"     : "pump417",
+       "action"         : "exclude",
+       "new_asset_name" : "SlurryPump417"
+   }
+
+If the *asset_name* property is a regular expression then the rule can be used to rename several assets in a single rule. In this case elements of the matched name can be used in the new name using standard regular expression syntax.
+
+.. code-block:: JSON
+
+   {
+       "asset_name"     : "pump([0-9]*)",
+       "action"         : "exclude",
+       "new_asset_name" : "SlurryPump$1"
+   }
+
+In the above example any asset called pump with a numeric suffix will be matched, the new name for the asset will be SlurryPump with the same numeric suffix added. The *$1* in the new asset name will be substituted with the matching text of the first bracketed expression in the regular expression given in *asset_name*.
+
+Remove Rule
+###########
+
+The remove rule will remove one or more datapoints from a reading. The remove rule must be passed one of a number of parmeters that are used to define the datapoints to be removed. These are
+
+  - **datapoint**: Remove datapoints that match the string value of the datapoint property. The value may be a literal datapoint name or a regular expression.
+
+  - **datapoints**: remove datapoints that match any of the values given in the array of strings that are the value of the datapoints property. The strings in the array may be a mixture of literal datapoint names or regular expressions.
+
+  - **type**: remove datapoints whose type matches the string value of the type property. 
+
+To remove a single named datapoint
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "remove",
+       "datapoint"  : "temperature"
+   }
+
+To remove all datapoint names matching a single regular expression
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "remove",
+       "datapoint"  : ".* temp"
+   }
+
+To remove a specific set of named datapoints
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "remove",
+       "datapoints" : [ "case temp", "impeller temp" ]
+   }
+
+The datapoints property can also contain a mixture of literal names and regular expressions.
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "remove",
+       "datapoints" : [ ".* temp", "current", "voltage" ]
+   }
+
+The type property can be given to specify that all datapoints of a particular type should be removed. To remove all datapoints of type image the following can be used.
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "remove",
+       "type"       : "image"
+   }
+
+.. note::
+
+   Only one of *datapoint*, *datapoints* or *type* should be specified in a remove rule.
+
+Select Rule
+###########
+
+The select rule is closely related to the remove rule. However instead of specifying the datapoints that should be removed from the matching readings, it specifies the datapoints that should be retained in the reading.
+
+.. note::
+
+   The action *retain* can be used as a synonym for the *select* action.
+
+The select rule takes the same set of optional properties as the remove rule.
+
+  - **datapoint**: select datapoints that match the string value of the datapoint property. The value may be a literal datapoint name or a regular expression.
+
+  - **datapoints**: select datapoints that match any of the values given in the array of strings that are the value of the datapoints property. The strings in the array may be a mixture of literal datapoint names or regular expressions.
+
+  - **type**: select datapoints whose type matches the string value of the type property. 
+
+To select a single named datapoint
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "select",
+       "datapoint"  : "temperature"
+   }
+
+To select all datapoint names matching a single regular expression
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "retain",
+       "datapoint"  : ".* temp"
+   }
+
+In the above we have used the synonym *retain* for the select rule.
+
+To select a specific set of named datapoints
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "select",
+       "datapoints" : [ "case temp", "impeller temp" ]
+   }
+
+The datapoints property can also contain a mixture of literal names and regular expressions.
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "select",
+       "datapoints" : [ ".* temp", "current", "voltage" ]
+   }
+
+The type property can be given to specify that all datapoints of a particular type should be retained. To select all datapoints of a numeric type, either integer or floating point, the following can be used.
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump[0-9]*",
+       "action"     : "select",
+       "type"       : "number"
+   }
+
+.. note::
+
+   Only one of *datapoint*, *datapoints* or *type* should be specified in a select rule.
+
+Split Rule
+##########
+
+The split rule is used to process a single reading and split the datapoints from that one reading to create multiple readings. The split action can be passed an optional *split* property to define how to split the reading.
+
+The split property value is a JSON object that describes how to split the asset into new assets and which datapoints are moved to which new assets. The content is a set of keys with the values for each key being an array of datapoint names. The key name becomes the asset name of the new asset and the values in the array are the datapoints to place in that asset.
+
+As an example if we want to take a single asset that contains electrical data and environmental data and create a pair of assets for the two categories of data, a split rule could be used.
+
+.. code-block:: JSON
+
+   {
+      "asset_name" : "pump4107",
+      "action"     : "split",
+      "split"      : {
+                "electrical"    : [ "voltage", "current", "power" ],
+                "environmental" : [ "temperature", "humidity" ]
+                }
+   }
+
+This would create two assets, *electrical* and *environmental*. Regular expressions can be used to name the new assets. Using the above example and applying it to any pump we could rewrite the split parameters as
+
+.. code-block:: JSON
+
+   {
+      "asset_name" : "pump([0-9]*)",
+      "action"     : "split",
+      "split"      : {
+                "electrical$1"    : [ "voltage", "current", "power" ],
+                "environmental$1" : [ "temperature", "humidity" ]
+                }
+   }
+
+This would match all *pump* assets and create two new assets called *electrical* and *environmental* with the numeric suffix copied from the pump asset.
+
+.. note::
+
+   It is possible to put the same datapoint in two or more assets created by the split rule.
+
+If no split property is given the reading will be split into a numner of readings, each with a single datapoint. The asset name of each of these new readings will be generated by taking the original asset name and appending the datapoint name with an underscore seperature. As an example if a reading with an asset name of *pump* with two datapoints, *speed* and *current* is passed to a split rule with no split paraeter. The two new readings created would have asset names *pump_speed* and *pump_current*.
+
+Flatten Rule
+############
+
+The flatten rule will convert an asset that has nested datapoints to a flat format. A nested datapoint is a datapoint that does not contain values, but rather contains one or more datapoints as its values. The flatten rule takes no additional properties to define its operation.
+
+.. code-block:: JSON
+
+   {
+       "asset_name" : "pump34",
+       "action"     : "flatten"
+   }
+
+Nest Rule
+#########
+
+The nest rule will allows datapoints within an asset to be nested below a new datapoint. This allows for a structured asset to be created from a flat asset. The nest asset uses a paramer called *nest* to define how to nest the data. 
+
+The nest property value is a JSON object that describes how to nest the datapoints into new parent datapoints and which datapoints are moved to which new datapoints. The content is a set of keys with the values for each key being an array of datapoint names. The key name becomes the parent datapoint and the values in the array are the datapoints to place under that datapoint.
+
+As an example if we want to take a single asset that contains electrical data and environmental data and create a pair of parent datapoints for the two categories of data, a nest rule could be used.
+
+.. code-block:: JSON
+
+   {
+      "asset_name" : "pump4107",
+      "action"     : "nest",
+      "nest"       : {
+                "electrical"    : [ "voltage", "current", "power" ],
+                "environmental" : [ "temperature", "humidity" ]
+                }
+   }
+
+Two new datapoints would be created, *electrical* and *environmental*. The *voltage*, *current* and *power* datapoints would then be moved to underneath the new *electrical* datapoint. The *temperature* and *humidity* datapoint would be moved below the *environmental* data points. THe result is a hierarchical structure of datapoints within the *pump4107* asset.
+
+
+Datapoint Map Rule
+##################
+
+Supported Types
+---------------
+
+The type property of any action that supports it must use one of the predefined type values as listed in the table below.
+
+    .. list-table:: Supported data types for actions
        :header-rows: 1
 
        * - Data type
@@ -75,20 +348,15 @@ The asset rules are an array of JSON requires **rules** as an array of objects w
          - FLOAT_ARRAY datapoints
        * - USER_ARRAY 
          - Both FLOAT_ARRAY and 2D_FLOAT_ARRAY datapoints
-       * - Nested 
-         - DP_DICT
+       * - NESTED 
+         - A synonym for DP_DICT
 
     .. note::
 
         Datapoint types are case insensitive.
 
-  - **select**: Select the datapoints that should be forwarded by the filter to the next stage of the pipeline. The action will be passed a list of datapoint names that will be sent forwards.
-
-  - **split**: This action will allow to split an asset into multiple assets.
-
-  - **flatten**: This action will flatten nested datapoint structure to single level. 
-
-  - **datapointmap**: Map the names of the datapoints within the asset. In this case a third property is included in the rule object, "map". This is an object that maps the current names of the data points to new names.
+Default Action
+--------------
 
 In addition a *defaultAction* may be included, however this is limited to *include*, *exclude* and *flatten*. Any asset that does not match a specific rule will have this default action applied to them. If the default action it not given it is treated as if a default action of *include* had been set.
 
