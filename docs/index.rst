@@ -306,9 +306,49 @@ As an example if we want to take a single asset that contains electrical data an
 
 Two new datapoints would be created, *electrical* and *environmental*. The *voltage*, *current* and *power* datapoints would then be moved to underneath the new *electrical* datapoint. The *temperature* and *humidity* datapoint would be moved below the *environmental* data points. The result is a hierarchical structure of datapoints within the *pump4107* asset.
 
+The *nest* rule only allows one level of nesting, however, by combining *nest* rules it is possible to create more deeply nested structures.
+
+.. code-block:: JSON
+
+   {
+      "asset_name" : "pump4107",
+      "action"     : "nest",
+      "nest"       : {
+                "electrical"    : [ "voltage", "current", "power" ],
+                "environmental" : [ "temperature", "humidity" ]
+                }
+   },
+   {
+      "asset_name" : "pump4107",
+      "action"     : "nest",
+      "nest"       : {
+                "plc"    : [ "electrical", "environmental" ]
+                }
+   }
+
+The first rule creates a one level deep nesting for the *electrical* and *environmental* datapoints, the second then pushed these down a level beneath the *plc* datapoint.
+
+.. note::
+
+   Care should be taken when nesting datapoints as not all destinations north of Fledge are able to handle nested data. Before sending data to those destinations you should always *flatten* the datapoints first.
 
 Datapoint Map Rule
 ##################
+
+The datapoint map rule is used to map a set names of the datapoints within a reading to a set of new names. The rule takes a *map* property in the rule configuration that contains a number of old names as the keys and new names as the values in each pair.
+
+.. code-block:: JSON
+
+   {
+      "asset_name" : "pump4107",
+      "action"     : "datapointmap",
+      "map"        : {
+                       "volts"   : "voltage",
+                       "amps"    : "current", 
+                       "watts"   : "power",
+                       "degrees" : "temperature"
+                     }
+   }
 
 Supported Types
 ---------------
@@ -489,6 +529,20 @@ Suppose we have a vibration sensor that gives us three datapoints for the vibrat
                 ]
    }
 
+The above example can be more succinctly expressed using the *datapoints* parameter
+
+.. code-block:: JSON
+
+   {
+      "rules" : [
+                  {
+                     "asset_name" : "vibration",
+                     "action"     : "remove",
+                     "datapoints" : [ "X", "Y", "Z" ]
+                  }
+                ]
+   }
+
 Passing On A Subset Of Datapoints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -639,8 +693,48 @@ Rules may be combined to perform multiple operations in a single stage of a pipe
 	"defaultAction": "include"
   }
 
-Regular Expression
-~~~~~~~~~~~~~~~~~~
+It is possible to have multiple rules applied to the same reading. Care should be taken however with the ordering of the rules. Rules are applied in the order they are defined in the configuration of the filter. In most cases this is not important, however there are three exceptions to this, the *rename*, the *datapointmap* and the *nest* rules.
+
+If the rename rule is used then the reading will be matched for subsequent rules will use the new asset name. In the example below the *select* rule will never be matched as the *rename* rule will change the asset name before the match is performed.
+
+.. code-block:: JSON
+
+   {
+      "rules" : [
+                  {
+                      "asset_name"     : "pump42",
+                      "action"         : "rename",
+                      "new_asset_name" : "CirculationPump"
+                  },
+                  {
+                      "asset_name"     : "pump42",
+                      "action"         : "select",
+                      "datapoints"     : [ "current", "speed", "flowrate" ]
+                  }
+      ]
+   }
+
+Before the second, select rule is matched the reading will already have changed asset name and hence the rule will hence not be matched. reversing the ordering of the rules will result in both rules being applied to the reading as the select rule will be executed first and then the asset will be renames.
+
+.. code-block:: JSON
+
+   {
+      "rules" : [
+                  {
+                      "asset_name"     : "pump42",
+                      "action"         : "select",
+                      "datapoints"     : [ "current", "speed", "flowrate" ]
+                  },
+                  {
+                      "asset_name"     : "pump42",
+                      "action"         : "rename",
+                      "new_asset_name" : "CirculationPump"
+                  }
+      ]
+   }
+
+Regular Expressions
+~~~~~~~~~~~~~~~~~~~
 
 Regular expression can be used for asset_name values in the JSON; datapoint values with remove action can also use regular expression.
 In the following example, Any datapoint which starts with "Pressure" will be removed from all the assets; if exists.
@@ -686,6 +780,8 @@ The filter supports the standard Linux regular expression syntax
    * - \d
      - Matches any digit (equivalent to [0-9])
 
+Enclosing part of an expression in *()* characters will allow that portion to be reused when substituting a new value. Each bracketed expression may be used in the substitution string by using the *$* character following by the bracketed expression number, i.e. the first bracketed expression is *$1*, the second *$2* and so forth.
+
 Examples
 ~~~~~~~~
 
@@ -713,7 +809,7 @@ or
 
     a|b[a-z].*
 
-If we wanted to match the words staring with *Tank* we can use the ^ operator
+If we wanted to match the words starting with *Tank* we can use the ^ operator
 
 .. code-block:: console
 
