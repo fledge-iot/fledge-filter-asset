@@ -66,24 +66,24 @@ SelectRule::SelectRule(const string& asset, const Value& json) : Rule(asset)
 	}
 	else
 	{
-		m_logger->error("The select rule in the asset filter must have a datapoints item that is a list of datapoint names. The select rule for asset '%s' will be ignored.", asset.c_str());
+		m_logger->error("The Select rule in the asset filter must have a datapoints item that is a list of datapoint names. The Select rule for asset '%s' will be ignored.", asset.c_str());
 	}
 }
 
 /**
- * Destructure for the select rule
+ * Destructor for the select rule
  */
 SelectRule::~SelectRule()
 {
-	// Nothing to be done, the base class destructure 
+	// Nothing to be done, the base class destructor 
 	// will do all the work
 }
 
 /**
  * Execute the map select rule.
  *
- * NB We first match agaisnt all the literal names and then,
- * if no match is foudn we try the regex names. This is faster
+ * NB We first match against all the literal names and then,
+ * if no match is found we try the regex names. This is faster
  * as regex is relatively slow. We always terminate on the first
  * match to improve performance.
  *
@@ -93,7 +93,6 @@ SelectRule::~SelectRule()
 void SelectRule::execute(Reading *reading, vector<Reading *>& out)
 {
 	// Iterate over the datapoints and remove unwanted
-	//Reading *newReading = new Reading(*reading); // copy original Reading object
 	vector<Datapoint *>& dps = reading->getReadingData();
 	vector<string> rmList;
 	for (auto& dp : dps)
@@ -175,7 +174,7 @@ void SelectRule::execute(Reading *reading, vector<Reading *>& out)
 }
 
 /**
- * Validate the type given in the configureation
+ * Validate the type given in the configuration
  *
  * @param type	The type name to validate
  * @return bool	Return true if the type is valid

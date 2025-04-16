@@ -29,7 +29,7 @@ Rule::Rule(const string& asset) : m_asset(asset),
 			m_assetIsRegex = true;
 		} catch (...) {
 			m_logger->error("Invalid regular expression for asset name '%s'.",
-					asset);
+					asset.c_str());
 		}
 	}
 }
@@ -90,7 +90,7 @@ IncludeRule::IncludeRule(const string& asset) : Rule(asset)
 }
 
 /**
- * Default constructure for when this rule is the default
+ * Default constructor for when this rule is the default
  * action of the plugin.
  */
 IncludeRule::IncludeRule() : Rule("defaultAction")
@@ -98,7 +98,7 @@ IncludeRule::IncludeRule() : Rule("defaultAction")
 }
 
 /**
- * Destructure for the include rule
+ * Destructor for the include rule
  */
 IncludeRule::~IncludeRule()
 {
@@ -129,7 +129,7 @@ ExcludeRule::ExcludeRule(const string& asset) : Rule(asset)
 }
 
 /**
- * Default constructure for when this rule is the default
+ * Default constructor for when this rule is the default
  * action of the plugin.
  */
 ExcludeRule::ExcludeRule() : Rule("defaultAction")
@@ -137,11 +137,11 @@ ExcludeRule::ExcludeRule() : Rule("defaultAction")
 }
 
 /**
- * Destructure for the exclude rule
+ * Destructor for the exclude rule
  */
 ExcludeRule::~ExcludeRule()
 {
-	// Nothing to be done, the base class destructure 
+	// Nothing to be done, the base class destructor 
 	// will do all the work
 }
 
@@ -175,8 +175,8 @@ RenameRule::RenameRule(const string& asset, const Value& json) : Rule(asset), m_
 				m_newRegex = new regex(m_newName);
 				m_isRegex = true;
 			} catch (...) {
-				m_logger->error("Invalid regular expression for asset name '%s'",
-						asset);
+				m_logger->error("Invalid regular expression '%s' for asset name '%s'",
+						m_newName.c_str(), asset.c_str());
 			}
 		}
 	}
@@ -187,7 +187,7 @@ RenameRule::RenameRule(const string& asset, const Value& json) : Rule(asset), m_
 }
 
 /**
- * Destructure for the rename rule
+ * Destructor for the rename rule
  */
 RenameRule::~RenameRule()
 {
@@ -243,7 +243,7 @@ DatapointMapRule::DatapointMapRule(const string& asset, const Value& json) : Rul
 			}
 			else
 			{
-				m_logger->error("The new name for the datapoint '%s' for assets '%s' must be a string.", m_asset.c_str(), origName);
+				m_logger->error("The new name for the datapoint '%s' for assets '%s' must be a string.", m_asset.c_str(), origName.c_str());
 			}
 		}
 	}
@@ -254,7 +254,7 @@ DatapointMapRule::DatapointMapRule(const string& asset, const Value& json) : Rul
 }
 
 /**
- * Destructure for the datapoint map rule
+ * Destructor for the datapoint map rule
  */
 DatapointMapRule::~DatapointMapRule()
 {

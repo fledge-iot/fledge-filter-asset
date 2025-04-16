@@ -20,7 +20,7 @@
  * The base class implements some common functionality, including
  * the name matching mechanism for the rules. Matches may be
  * either based on the exact match of a rule or by using a regex.
- * Since regex is comparitively slow we cahce the compiled regex
+ * Since regex is comparitively slow we cache the compiled regex
  * expression and only use regex if the asset name in the rule
  * contains any special characters.
  */

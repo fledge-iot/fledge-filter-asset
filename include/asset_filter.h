@@ -29,7 +29,7 @@
  * All rules are processed in order on each reading. A rule
  * will only be run if the asset name in the reading matches
  * the asset name in the rule. Each rule may result in zero
- * or more readings beign returned for a single reading
+ * or more readings being returned for a single reading
  * passed into the rule.
  */
 class AssetFilter : public FledgeFilter {

@@ -30,15 +30,15 @@ FlattenRule::FlattenRule(const string& asset) : Rule(asset)
 }
 
 /**
- * Detructure for flatten rule
+ * Detructor for flatten rule
  */
 FlattenRule::~FlattenRule()
 {
-	// Base destructure does all the work
+	// Base destructor does all the work
 }
 
 /**
- * Execute the flatten rule
+ * Execute the Flatten rule
  *
  * @param reading	The reading to process
  * @param out		The vector in which to place the result
@@ -79,7 +79,7 @@ void FlattenRule::execute(Reading *reading, vector<Reading *>& out)
  *
  * @param datapoint		datapoint to flatten
  * @param datapointName	Name of datapoint
- * @param flattenDatapoints	vector of flatten datapoints
+ * @param flattenDatapoints	vector of flattened datapoints
  */
 
 void FlattenRule::flattenDatapoint(Datapoint *datapoint,  string datapointName, vector<Datapoint *>& flattenDatapoints)

@@ -65,7 +65,7 @@ RemoveRule::RemoveRule(const string& asset, const rapidjson::Value& json) : Rule
 	}
 	else
 	{
-		m_logger->error("Badly defined remove rule for asset '%s', a 'datapoint', 'type' or 'datapoints' property must be given The 'datapoint' and 'type' properties must be strings and 'datapopints' is expected to be an array of strings.", m_asset.c_str());
+		m_logger->error("Badly defined remove rule for asset '%s'. A 'datapoint', 'type' or 'datapoints' property must be given. The 'datapoint' and 'type' properties must be strings and 'datapopints' is expected to be an array of strings.", m_asset.c_str());
 
 	}
 }
@@ -98,7 +98,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 			if (m_datapoint.compare(dp->getName()) == 0)
 			{
 				it = dps.erase(it);
-				m_logger->info("Removing datapoint with name %s", dp->getName().c_str());
+				m_logger->debug("Removing datapoint with name %s", dp->getName().c_str());
 				delete dp;
 			}
 			else
@@ -109,7 +109,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 			if (regex_match(dp->getName(), *m_regex))
 			{
 				it = dps.erase(it);
-				m_logger->info("Removing datapoint with name %s", dp->getName().c_str());
+				m_logger->debug("Removing datapoint with name %s", dp->getName().c_str());
 				delete dp;
 			}
 			else
@@ -122,7 +122,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 			if (dpvStr == m_type)
 			{
 				it = dps.erase(it);
-				m_logger->info("Removing datapoint with type %s", m_type.c_str());
+				m_logger->debug("Removing datapoint with type %s", m_type.c_str());
 				delete dp;
 			}
 			else if (m_type == "NUMBER")
@@ -131,7 +131,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 				{
 					it = dps.erase(it);
 					delete dp;
-					m_logger->info("Removing datapoint with type %s", dpvStr.c_str());
+					m_logger->debug("Removing datapoint with type %s", dpvStr.c_str());
 				}
 				else 
 					++it;
@@ -141,7 +141,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 				if (dpvStr != "FLOAT" && dpvStr != "INTEGER")
 				{
 					it = dps.erase(it);
-					m_logger->info("Removing datapoint with type %s", dpvStr.c_str());
+					m_logger->debug("Removing datapoint with type %s", dpvStr.c_str());
 					delete dp;
 				}
 				else
@@ -152,7 +152,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 				if (dpvStr == "FLOAT_ARRAY" || dpvStr == "2D_FLOAT_ARRAY" )
 				{
 					it = dps.erase(it);
-					m_logger->info("Removing datapoint with type %s", dpvStr.c_str());
+					m_logger->debug("Removing datapoint with type %s", dpvStr.c_str());
 					delete dp;
 				}
 				else
@@ -172,7 +172,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 					if (regex_match(dp->getName(), regexPattern))
 					{
 						it = dps.erase(it);
-						m_logger->info("Removing datapoint with name %s", dp->getName().c_str());
+						m_logger->debug("Removing datapoint with name %s", dp->getName().c_str());
 						delete dp;
 						removed = true;
 					}
@@ -180,7 +180,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 				else if (name.compare(dp->getName()) == 0)
 				{
 					it = dps.erase(it);
-					m_logger->info("Removing datapoint with name %s", dp->getName().c_str());
+					m_logger->debug("Removing datapoint with name %s", dp->getName().c_str());
 					delete dp;
 					removed = true;
 				}
@@ -197,7 +197,7 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 }
 
 /**
- * Validate the type given in the configureation
+ * Validate the type given in the configuration
  *
  * @param type	The type name to validate
  * @return bool	Return true if the type is valid

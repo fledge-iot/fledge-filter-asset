@@ -60,7 +60,7 @@ NestRule::NestRule(const string& asset, const Value& json) : Rule(asset)
 }
 
 /**
- * Destructure for NestRule
+ * Destructor for NestRule
  */
 NestRule::~NestRule()
 {

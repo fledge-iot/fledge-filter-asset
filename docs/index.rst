@@ -34,7 +34,7 @@ Rules
 
 The asset rules are an array of JSON requires **rules** as an array of objects which define the asset name to which the rule is applied and an action. Rules on an asset will be executed in the exact order defined in the JSON array.
 
-There are a number of different rules that may be applied to the readings, each rule will perform a specific action on the reading and will be applied based upon a match with the asset name within the reading. The rules are configured using a JSON object to define the operation of the rule, each object contains the asset match criteria and the action name. In addition there are a set of parameters that are passed to the rule.
+There are a number of different rules that may be applied to the readings. Each rule will perform a specific action on the reading and will be applied based upon a match with the asset name within the reading. The rules are configured using a JSON object to define the operation of the rule. Each object contains the asset match criteria and the action name. In addition there are a set of parameters that are passed to the rule.
 
 The common parameters are
 
@@ -45,9 +45,9 @@ The common parameters are
 The sections below document the details of each of the different rules and the parameters supported by those actions.
 
 Include Rule
-############
+~~~~~~~~~~~~
 
-This rule takes no extra parameters, if the asset name matches that of the reading then the reading will be included in the output.
+This rule takes no extra parameters. If the asset name matches that of the reading then the reading will be included in the output.
 
 .. code-block:: JSON
 
@@ -57,9 +57,9 @@ This rule takes no extra parameters, if the asset name matches that of the readi
    }
 
 Exclude Rule
-############
+~~~~~~~~~~~~
 
-This rule takes no extra parameters, if the asset name matches that of the reading then the reading will be excluded in the output.
+This rule takes no extra parameters. If the asset name matches that of the reading then the reading will be excluded in the output.
 
 .. code-block:: JSON
 
@@ -69,7 +69,7 @@ This rule takes no extra parameters, if the asset name matches that of the readi
    }
 
 Rename Rule
-###########
+~~~~~~~~~~~
 
 The rename rule takes an extra parameter which is the new name of the asset that will be used for any matching reading.
 
@@ -91,12 +91,12 @@ If the *asset_name* property is a regular expression then the rule can be used t
        "new_asset_name" : "SlurryPump$1"
    }
 
-In the above example any asset called pump with a numeric suffix will be matched, the new name for the asset will be SlurryPump with the same numeric suffix added. The *$1* in the new asset name will be substituted with the matching text of the first bracketed expression in the regular expression given in *asset_name*.
+In the above example any asset called *pump* with a numeric suffix will be matched, the new name for the asset will be *SlurryPump* with the same numeric suffix added. The *$1* in the new asset name will be substituted with the matching text of the first bracketed expression in the regular expression given in *asset_name*.
 
 Remove Rule
-###########
+~~~~~~~~~~~
 
-The remove rule will remove one or more datapoints from a reading. The remove rule must be passed one of a number of parameters that are used to define the datapoints to be removed. These are
+The remove rule will remove one or more datapoints from a reading. The remove rule must be passed one of a number of parameters that are used to define the datapoints to be removed. These are:
 
   - **datapoint**: Remove datapoints that match the string value of the datapoint property. The value may be a literal datapoint name or a regular expression.
 
@@ -104,7 +104,7 @@ The remove rule will remove one or more datapoints from a reading. The remove ru
 
   - **type**: remove datapoints whose type matches the string value of the type property. 
 
-To remove a single named datapoint
+To remove a single named datapoint:
 
 .. code-block:: JSON
 
@@ -114,7 +114,7 @@ To remove a single named datapoint
        "datapoint"  : "temperature"
    }
 
-To remove all datapoint names matching a single regular expression
+To remove all datapoint names matching a single regular expression:
 
 .. code-block:: JSON
 
@@ -124,7 +124,7 @@ To remove all datapoint names matching a single regular expression
        "datapoint"  : ".* temp"
    }
 
-To remove a specific set of named datapoints
+To remove a specific set of named datapoints:
 
 .. code-block:: JSON
 
@@ -134,7 +134,7 @@ To remove a specific set of named datapoints
        "datapoints" : [ "case temp", "impeller temp" ]
    }
 
-The datapoints property can also contain a mixture of literal names and regular expressions.
+The datapoints property can also contain a mixture of literal names and regular expressions:
 
 .. code-block:: JSON
 
@@ -144,7 +144,7 @@ The datapoints property can also contain a mixture of literal names and regular 
        "datapoints" : [ ".* temp", "current", "voltage" ]
    }
 
-The type property can be given to specify that all datapoints of a particular type should be removed. To remove all datapoints of type image the following can be used.
+The type property can be given to specify that all datapoints of a particular type should be removed. To remove all datapoints of type image the following can be used:
 
 .. code-block:: JSON
 
@@ -159,7 +159,7 @@ The type property can be given to specify that all datapoints of a particular ty
    Only one of *datapoint*, *datapoints* or *type* should be specified in a remove rule.
 
 Select Rule
-###########
+~~~~~~~~~~~
 
 The select rule is closely related to the remove rule. However instead of specifying the datapoints that should be removed from the matching readings, it specifies the datapoints that should be retained in the reading.
 
@@ -232,7 +232,7 @@ The type property can be given to specify that all datapoints of a particular ty
    Only one of *datapoint*, *datapoints* or *type* should be specified in a select rule.
 
 Split Rule
-##########
+~~~~~~~~~~
 
 The split rule is used to process a single reading and split the datapoints from that one reading to create multiple readings. The split action can be passed an optional *split* property to define how to split the reading.
 
@@ -273,7 +273,7 @@ This would match all *pump* assets and create two new assets called *electrical*
 If no split property is given the reading will be split into a number of readings, each with a single datapoint. The asset name of each of these new readings will be generated by taking the original asset name and appending the datapoint name with an underscore separator. As an example if a reading with an asset name of *pump* with two datapoints, *speed* and *current* is passed to a split rule with no split parameter. The two new readings created would have asset names *pump_speed* and *pump_current*.
 
 Flatten Rule
-############
+~~~~~~~~~~~~
 
 The flatten rule will convert an asset that has nested datapoints to a flat format. A nested datapoint is a datapoint that does not contain values, but rather contains one or more datapoints as its values. The flatten rule takes no additional properties to define its operation.
 
@@ -285,7 +285,7 @@ The flatten rule will convert an asset that has nested datapoints to a flat form
    }
 
 Nest Rule
-#########
+~~~~~~~~~
 
 The nest rule will allows datapoints within an asset to be nested below a new datapoint. This allows for a structured asset to be created from a flat asset. The nest asset uses a parameter called *nest* to define how to nest the data. 
 
@@ -326,14 +326,14 @@ The *nest* rule only allows one level of nesting, however, by combining *nest* r
                 }
    }
 
-The first rule creates a one level deep nesting for the *electrical* and *environmental* datapoints, the second then pushed these down a level beneath the *plc* datapoint.
+The first rule creates a one level deep nesting for the *electrical* and *environmental* datapoints. The second then pushed these down a level beneath the *plc* datapoint.
 
 .. note::
 
    Care should be taken when nesting datapoints as not all destinations north of Fledge are able to handle nested data. Before sending data to those destinations you should always *flatten* the datapoints first.
 
 Datapoint Map Rule
-##################
+~~~~~~~~~~~~~~~~~~
 
 The datapoint map rule is used to map a set names of the datapoints within a reading to a set of new names. The rule takes a *map* property in the rule configuration that contains a number of old names as the keys and new names as the values in each pair.
 
@@ -714,7 +714,7 @@ If the rename rule is used then the reading will be matched for subsequent rules
       ]
    }
 
-Before the second, select rule is matched the reading will already have changed asset name and hence the rule will hence not be matched. reversing the ordering of the rules will result in both rules being applied to the reading as the select rule will be executed first and then the asset will be renames.
+Before the second select rule is matched, the reading will already have changed asset name and hence the rule will hence not be matched. Reversing the ordering of the rules will result in both rules being applied to the reading as the select rule will be executed first and then the asset will be renamed.
 
 .. code-block:: JSON
 
@@ -736,8 +736,8 @@ Before the second, select rule is matched the reading will already have changed 
 Regular Expressions
 ~~~~~~~~~~~~~~~~~~~
 
-Regular expression can be used for asset_name values in the JSON; datapoint values with remove action can also use regular expression.
-In the following example, Any datapoint which starts with "Pressure" will be removed from all the assets; if exists.
+Regular expression can be used for *asset_name* values in the JSON. Datapoint values within the *remove* and *select* actions can also use a regular expression. Regular expressions may also be used to match and replace names in the *rename*, *datapointmap* and *split* rules.
+In the following example, any datapoint which starts with "Pressure" will be removed from all the assets.
 
 .. code-block:: JSON
 

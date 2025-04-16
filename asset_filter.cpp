@@ -13,7 +13,7 @@ using namespace std;
 using namespace rapidjson;
 
 /**
- * Construct an asset filter. Call the base class constructure
+ * Construct an asset filter. Call the base class constructor
  * and handle the configuration.
  */
 AssetFilter::AssetFilter(const std::string& filterName,
@@ -29,7 +29,7 @@ AssetFilter::AssetFilter(const std::string& filterName,
 }
 
 /**
- * Destructure for the asset filter
+ * Destructor for the asset filter
  */
 AssetFilter::~AssetFilter()
 {
@@ -86,7 +86,7 @@ void AssetFilter::handleConfig(ConfigCategory& category)
 		if (!doc.HasMember("rules"))
 		{
 			if (m_defaultRule)
-				m_logger->error("The asset filter configuration is missing the rules item. The default rule %s rule will be applied to all assets.", m_defaultRule->getName().c_str());
+				m_logger->warn("The asset filter configuration is missing the rules item. The default rule %s rule will be applied to all assets.", m_defaultRule->getName().c_str());
 			else
 				m_logger->error("The asset filter configuration is missing the rules item. No action will be taken by the filter.");
 			return;
@@ -94,14 +94,14 @@ void AssetFilter::handleConfig(ConfigCategory& category)
 		Value &rules = doc["rules"];
 		if (!rules.IsArray())
 		{
-			m_logger->error("The rules item in the asset filter configuration should be an array of rules objects. the filter will have no effect.");
+			m_logger->error("The rules item in the asset filter configuration should be an array of rules objects. The filter will have no effect.");
 			return;
 		}
 		for (Value::ConstValueIterator iter = rules.Begin(); iter != rules.End(); ++iter)
 		{
 			if (!iter->IsObject())
 			{
-				m_logger->error("Parse asset filter config, each entry in rules array must be an object. The filter will have no effect.");
+				m_logger->error("Asset filter configuration parse error. Each entry in rules array must be an object. The filter will have no effect.");
 				continue;
 			}
 			if (!iter->HasMember("asset_name"))
@@ -147,10 +147,10 @@ void AssetFilter::handleConfig(ConfigCategory& category)
  * Process the readings by executing all the rules in turn
  * that match the asset name in each reading.
  *
- * NB Each inpout reading may result in zero or more output readings
+ * NB Each input reading may result in zero or more output readings
  *
  * @param input	The readings to be processed
- * @param out	The resulatant readings
+ * @param out	The resultant readings
  */
 void AssetFilter::ingest(READINGSET *input, vector<Reading*>& out)
 {
@@ -209,7 +209,7 @@ void AssetFilter::ingest(READINGSET *input, vector<Reading*>& out)
  * If a rule produces no results then we end the recursive
  * execution of the rules at that point.
  *
- * @param reading	The reading to proces
+ * @param reading	The reading to process
  * @param out		The final output vector to add the results of all rule executions to
  * @param rule		Iterator on the rules to process
  */
