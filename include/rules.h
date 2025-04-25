@@ -138,8 +138,10 @@ class SplitRule : public Rule {
 		SplitRule(const std::string& asset, const rapidjson::Value& json);
 		~SplitRule();
 		void         execute(Reading *reading, std::vector<Reading *>& out);
+		void	     setName(const std::string& name) { m_pluginName = name; };
 	private:
 		std::map<std::string, std::vector<std::string>> m_split;
+		std::string		m_pluginName;
 };
 
 /**

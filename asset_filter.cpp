@@ -130,7 +130,11 @@ void AssetFilter::handleConfig(ConfigCategory& category)
 			else if (action.compare("flatten") == 0)
 				m_rules.emplace_back(new FlattenRule(asset_name));
 			else if (action.compare("split") == 0)
-				m_rules.emplace_back(new SplitRule(asset_name, *iter));
+			{
+				SplitRule *rule = new SplitRule(asset_name, *iter);
+				rule->setName(m_name);
+				m_rules.emplace_back(rule);
+			}
 			else if (action.compare("select") == 0)
 				m_rules.emplace_back(new SelectRule(asset_name, *iter));
 			else if (action.compare("retain") == 0)

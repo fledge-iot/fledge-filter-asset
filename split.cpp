@@ -113,8 +113,7 @@ void SplitRule::execute(Reading *reading, vector<Reading *>& out)
 				out.emplace_back(new Reading(newAssetName, newDatapoints));
 				if (tracker)
 				{
-					// TODO add asset tracker record
-					// tracker->addAssetTrackingTuple(configCatName, newAssetName, string("Filter"));
+					tracker->addAssetTrackingTuple(m_pluginName, newAssetName, string("Filter"));
 				}
 			}
 		}
@@ -132,8 +131,7 @@ void SplitRule::execute(Reading *reading, vector<Reading *>& out)
 			out.emplace_back(new Reading(newAssetName, dp));
 			if (tracker)
 			{
-				// TODO
-//				tracker->addAssetTrackingTuple(configCatName, newAssetName, string("Filter"));
+				tracker->addAssetTrackingTuple(m_pluginName, newAssetName, string("Filter"));
 			}
 		}
 	}
