@@ -14,18 +14,19 @@ using namespace std;
 /**
  * Default constructor for the Flatten rule
  *
- * @param asset	The asset name
+ * @param service The service name
  */
-FlattenRule::FlattenRule() : Rule("defaultAction")
+FlattenRule::FlattenRule(const string& service) : Rule(service, "defaultAction")
 {
 }
 
 /**
  * Constructor for the Flatten rule
  *
+ * @param service The service name
  * @param asset	The asset name
  */
-FlattenRule::FlattenRule(const string& asset) : Rule(asset)
+FlattenRule::FlattenRule(const string& service, const string& asset) : Rule(service, asset)
 {
 }
 
@@ -71,6 +72,10 @@ void FlattenRule::execute(Reading *reading, vector<Reading *>& out)
 	reading->getUserTimestamp(&tm);
 	newReading->setUserTimestamp(tm);
 	delete reading;
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, newReading->getAssetName(), "Filter");
+	}
 	out.emplace_back(newReading);
 }
 

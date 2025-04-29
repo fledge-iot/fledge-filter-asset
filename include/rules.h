@@ -11,6 +11,7 @@
  */
 #include <logger.h>
 #include <reading.h>
+#include <asset_tracking.h>
 #include <map>
 #include <regex>
 
@@ -26,7 +27,7 @@
  */
 class Rule {
 	public:
-		Rule(const std::string& asset);
+		Rule(const std::string& service, const std::string& asset);
 		virtual ~Rule();
 		virtual void	execute(Reading *reading, std::vector<Reading *>& out) = 0;
 		bool		match(Reading *reading);
@@ -38,6 +39,8 @@ class Rule {
 		std::string	m_asset;
 		bool		m_assetIsRegex;
 		std::regex	*m_asset_re;
+		std::string	m_service;
+		AssetTracker	*m_tracker;
 };
 
 /**
@@ -48,8 +51,8 @@ class Rule {
  */
 class IncludeRule : public Rule {
 	public:
-		IncludeRule(const std::string& asset);
-		IncludeRule();
+		IncludeRule(const std::string& service, const std::string& asset);
+		IncludeRule(const std::string& service);
 		~IncludeRule();
 		void		execute(Reading *reading, std::vector<Reading *>& out);
 };
@@ -62,8 +65,8 @@ class IncludeRule : public Rule {
  */
 class ExcludeRule : public Rule {
 	public:
-		ExcludeRule(const std::string& asset);
-		ExcludeRule();
+		ExcludeRule(const std::string& service, const std::string& asset);
+		ExcludeRule(const std::string& service);
 		~ExcludeRule();
 		void		execute(Reading *reading, std::vector<Reading *>& out);
 };
@@ -74,7 +77,7 @@ class ExcludeRule : public Rule {
  */
 class RenameRule : public Rule {
 	public:
-		RenameRule(const std::string& asset, const rapidjson::Value& json);
+		RenameRule(const std::string& service, const std::string& asset, const rapidjson::Value& json);
 		~RenameRule();
 		void		execute(Reading *reading, std::vector<Reading *>& out);
 	private:
@@ -88,7 +91,7 @@ class RenameRule : public Rule {
  */
 class RemoveRule : public Rule {
 	public:
-		RemoveRule(const std::string& asset, const rapidjson::Value& json);
+		RemoveRule(const std::string& service, const std::string& asset, const rapidjson::Value& json);
 		~RemoveRule();
 		void		execute(Reading *reading, std::vector<Reading *>& out);
 	private:
@@ -109,8 +112,8 @@ class RemoveRule : public Rule {
  */
 class FlattenRule : public Rule {
 	public:
-		FlattenRule(const std::string& asset);
-		FlattenRule();
+		FlattenRule(const std::string& service, const std::string& asset);
+		FlattenRule(const std::string& service);
 		~FlattenRule();
 		void		execute(Reading *reading, std::vector<Reading *>& out);
 	private:
@@ -122,7 +125,7 @@ class FlattenRule : public Rule {
  */
 class DatapointMapRule : public Rule {
 	public:
-		DatapointMapRule(const std::string& asset, const rapidjson::Value& json);
+		DatapointMapRule(const std::string& service, const std::string& asset, const rapidjson::Value& json);
 		~DatapointMapRule();
 		void         execute(Reading *reading, std::vector<Reading *>& out);
 	private:
@@ -135,13 +138,11 @@ class DatapointMapRule : public Rule {
  */
 class SplitRule : public Rule {
 	public:
-		SplitRule(const std::string& asset, const rapidjson::Value& json);
+		SplitRule(const std::string& service, const std::string& asset, const rapidjson::Value& json);
 		~SplitRule();
 		void         execute(Reading *reading, std::vector<Reading *>& out);
-		void	     setName(const std::string& name) { m_pluginName = name; };
 	private:
 		std::map<std::string, std::vector<std::string>> m_split;
-		std::string		m_pluginName;
 };
 
 /**
@@ -149,7 +150,7 @@ class SplitRule : public Rule {
  */
 class SelectRule : public Rule {
 	public:
-		SelectRule(const std::string& asset, const rapidjson::Value& json);
+		SelectRule(const std::string& service, const std::string& asset, const rapidjson::Value& json);
 		~SelectRule();
 		void         execute(Reading *reading, std::vector<Reading *>& out);
 	private:
@@ -167,7 +168,7 @@ class SelectRule : public Rule {
  */
 class NestRule : public Rule {
 	public:
-		NestRule(const std::string& asset, const rapidjson::Value& json);
+		NestRule(const std::string& service, const std::string& asset, const rapidjson::Value& json);
 		~NestRule();
 		void         execute(Reading *reading, std::vector<Reading *>& out);
 	private:

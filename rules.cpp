@@ -16,10 +16,11 @@ using namespace rapidjson;
 /**
  * Constructor for the base rule class
  *
+ * @param service The service name
  * @param asset	The asset name for the rule
  */
-Rule::Rule(const string& asset) : m_asset(asset),
-	m_assetIsRegex(false), m_asset_re(NULL)
+Rule::Rule(const string& service, const string& asset) : m_asset(asset),
+	m_assetIsRegex(false), m_asset_re(NULL), m_service(service)
 {
 	m_logger = Logger::getLogger();
 	if (isRegexString(asset))
@@ -32,6 +33,7 @@ Rule::Rule(const string& asset) : m_asset(asset),
 					asset.c_str());
 		}
 	}
+	m_tracker = AssetTracker::getAssetTracker();
 }
 
 /**
@@ -83,9 +85,10 @@ bool Rule::isRegexString(const string& str)
 /**
  * Constructor for the include rule
  *
+ * @param service The service name
  * @param asset	The asset name
  */
-IncludeRule::IncludeRule(const string& asset) : Rule(asset)
+IncludeRule::IncludeRule(const string& service, const string& asset) : Rule(service, asset)
 {
 }
 
@@ -93,7 +96,7 @@ IncludeRule::IncludeRule(const string& asset) : Rule(asset)
  * Default constructor for when this rule is the default
  * action of the plugin.
  */
-IncludeRule::IncludeRule() : Rule("defaultAction")
+IncludeRule::IncludeRule(const string& service) : Rule(service, "defaultAction")
 {
 }
 
@@ -117,14 +120,19 @@ IncludeRule::~IncludeRule()
 void IncludeRule::execute(Reading *reading, vector<Reading *>& out)
 {
 	out.emplace_back(reading);
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
+	}
 }
 
 /**
  * Constructor for the exclude rule
  *
+ * @param service The service name
  * @param asset	The asset name
  */
-ExcludeRule::ExcludeRule(const string& asset) : Rule(asset)
+ExcludeRule::ExcludeRule(const string& service, const string& asset) : Rule(service, asset)
 {
 }
 
@@ -132,7 +140,7 @@ ExcludeRule::ExcludeRule(const string& asset) : Rule(asset)
  * Default constructor for when this rule is the default
  * action of the plugin.
  */
-ExcludeRule::ExcludeRule() : Rule("defaultAction")
+ExcludeRule::ExcludeRule(const string& service) : Rule(service, "defaultAction")
 {
 }
 
@@ -155,16 +163,22 @@ ExcludeRule::~ExcludeRule()
  */
 void ExcludeRule::execute(Reading *reading, vector<Reading *>& out)
 {
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
+	}
 	delete reading;
 }
 
 /**
  * Constructor for the rename rule
  *
+ * @param service The service name
  * @param asset	The asset name
  * @param json	JSON iterator
  */
-RenameRule::RenameRule(const string& asset, const Value& json) : Rule(asset), m_isRegex(false)
+RenameRule::RenameRule(const string& service, const string& asset, const Value& json) :
+	Rule(service, asset), m_isRegex(false)
 {
 	if (json.HasMember("new_asset_name") && json["new_asset_name"].IsString())
 	{
@@ -203,6 +217,10 @@ RenameRule::~RenameRule()
  */
 void RenameRule::execute(Reading *reading, vector<Reading *>& out)
 {
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
+	}
 	if (!m_isRegex)
 	{
 		reading->setAssetName(m_newName);
@@ -212,16 +230,22 @@ void RenameRule::execute(Reading *reading, vector<Reading *>& out)
 		string name = reading->getAssetName();
 		reading->setAssetName(regex_replace(name, *m_asset_re, m_newName));
 	}
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
+	}
 	out.emplace_back(reading);
 }
 
 /**
  * Constructor for the datapoint map rule
  *
+ * @param service The service name
  * @param asset	The asset name
  * @param json	JSON iterator
  */
-DatapointMapRule::DatapointMapRule(const string& asset, const Value& json) : Rule(asset)
+DatapointMapRule::DatapointMapRule(const string& service, const string& asset, const Value& json) :
+	Rule(service, asset)
 {
 	if (json.HasMember("map"))
 	{
@@ -293,6 +317,10 @@ void DatapointMapRule::execute(Reading *reading, vector<Reading *>& out)
 				}
 			}
 		}
+	}
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
 	}
 	out.emplace_back(reading);
 }

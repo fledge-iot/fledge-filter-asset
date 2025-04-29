@@ -19,10 +19,11 @@ static const    set<string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_AR
 /**
  * Constructor for the select map rule
  *
+ * @param service The service name
  * @param asset	The asset name
  * @param json	JSON iterator
  */
-SelectRule::SelectRule(const string& asset, const Value& json) : Rule(asset)
+SelectRule::SelectRule(const string& service, const string& asset, const Value& json) : Rule(service, asset)
 {
 	if (json.HasMember("type") && json["type"].IsString())
 	{
@@ -166,6 +167,10 @@ void SelectRule::execute(Reading *reading, vector<Reading *>& out)
 	{
 		Datapoint *r =  reading->removeDatapoint(name);
 		delete r;
+	}
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), "Filter");
 	}
 	if (reading->getDatapointCount() > 0)
 		out.push_back(reading);
