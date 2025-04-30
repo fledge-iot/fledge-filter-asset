@@ -53,5 +53,6 @@ class AssetFilter : public FledgeFilter {
 		std::vector<Rule *>
 				m_rules;
 		Rule		*m_defaultRule;
+		std::string	m_instanceName;
 };
 #endif

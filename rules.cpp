@@ -217,10 +217,7 @@ RenameRule::~RenameRule()
  */
 void RenameRule::execute(Reading *reading, vector<Reading *>& out)
 {
-	if (m_tracker)
-	{
-		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
-	}
+	string origName = reading->getAssetName();
 	if (!m_isRegex)
 	{
 		reading->setAssetName(m_newName);
@@ -232,6 +229,7 @@ void RenameRule::execute(Reading *reading, vector<Reading *>& out)
 	}
 	if (m_tracker)
 	{
+		m_tracker->addAssetTrackingTuple(m_service, origName,  string("Filter"));
 		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
 	}
 	out.emplace_back(reading);
