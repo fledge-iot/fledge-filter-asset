@@ -264,6 +264,7 @@ vector<Reading *> result;
  */
 void AssetFilter::reconfigure(const string& config)
 {
+	setConfig(config);
 	ConfigCategory conf("AssetFilter", config);
 	handleConfig(conf);
 }
