@@ -25,8 +25,8 @@ AssetFilter::AssetFilter(const std::string& filterName,
 {
 	m_defaultRule = NULL;
 	m_logger = Logger::getLogger();
-	handleConfig(filterConfig);
 	m_instanceName = filterConfig.getName();
+	handleConfig(filterConfig);
 }
 
 /**
@@ -72,7 +72,7 @@ void AssetFilter::handleConfig(ConfigCategory& category)
 		}
 		else
 		{
-			string actionStr= defaultAction->value.GetString();
+			string actionStr = defaultAction->value.GetString();
 			for (auto & c: actionStr) c = tolower(c);
 			if (actionStr == "include")
 				m_defaultRule = new IncludeRule(m_instanceName);
