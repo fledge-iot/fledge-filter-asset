@@ -16,10 +16,11 @@ using namespace rapidjson;
 /**
  * Constructor for the nest map rule
  *
+ * @param service The name of the service
  * @param asset	The asset name
  * @param json	JSON configuration element for rule
  */
-NestRule::NestRule(const string& asset, const Value& json) : Rule(asset)
+NestRule::NestRule(const string& service, const string& asset, const Value& json) : Rule(service, asset)
 {
 	if (json.HasMember("nest"))
 	{
@@ -98,6 +99,10 @@ void NestRule::execute(Reading *reading, vector<Reading *>& out)
 			Datapoint *dp = new Datapoint(newDatapointName, dpv);
 			reading->addDatapoint(dp);
 		}
+	}
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
 	}
 	out.emplace_back(reading);
 }

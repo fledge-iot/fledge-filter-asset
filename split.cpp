@@ -16,10 +16,11 @@ using namespace rapidjson;
 /**
  * Constructor for the split map rule
  *
+ * @param service	The name of the service
  * @param asset	The asset name
  * @param json	JSON iterator
  */
-SplitRule::SplitRule(const string& asset, const Value& json) : Rule(asset)
+SplitRule::SplitRule(const string& service, const string& asset, const Value& json) : Rule(service, asset)
 {
 	string newAssetName = {};
 
@@ -113,8 +114,7 @@ void SplitRule::execute(Reading *reading, vector<Reading *>& out)
 				out.emplace_back(new Reading(newAssetName, newDatapoints));
 				if (tracker)
 				{
-					// TODO add asset tracker record
-					// tracker->addAssetTrackingTuple(configCatName, newAssetName, string("Filter"));
+					tracker->addAssetTrackingTuple(m_service, newAssetName, string("Filter"));
 				}
 			}
 		}
@@ -132,8 +132,7 @@ void SplitRule::execute(Reading *reading, vector<Reading *>& out)
 			out.emplace_back(new Reading(newAssetName, dp));
 			if (tracker)
 			{
-				// TODO
-//				tracker->addAssetTrackingTuple(configCatName, newAssetName, string("Filter"));
+				tracker->addAssetTrackingTuple(m_service, newAssetName, string("Filter"));
 			}
 		}
 	}

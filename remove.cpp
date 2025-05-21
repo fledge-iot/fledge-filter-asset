@@ -22,7 +22,8 @@ static const    set<string> validDpTypes{"FLOAT", "INTEGER", "STRING", "FLOAT_AR
  * @param asset	The asset name
  * @param json	JSON object
  */
-RemoveRule::RemoveRule(const string& asset, const rapidjson::Value& json) : Rule(asset), m_regex(NULL)
+RemoveRule::RemoveRule(const string& service, const string& asset, const rapidjson::Value& json) :
+	Rule(service, asset), m_regex(NULL)
 {
 	if (json.HasMember("datapoint") && json["datapoint"].IsString())
 	{
@@ -192,6 +193,10 @@ void RemoveRule::execute(Reading *reading, vector<Reading *>& out)
 		}
 		else
 			++it;
+	}
+	if (m_tracker)
+	{
+		m_tracker->addAssetTrackingTuple(m_service, reading->getAssetName(), string("Filter"));
 	}
 	out.emplace_back(reading);
 }

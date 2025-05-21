@@ -25,6 +25,7 @@ AssetFilter::AssetFilter(const std::string& filterName,
 {
 	m_defaultRule = NULL;
 	m_logger = Logger::getLogger();
+	m_instanceName = filterConfig.getName();
 	handleConfig(filterConfig);
 }
 
@@ -66,19 +67,19 @@ void AssetFilter::handleConfig(ConfigCategory& category)
 		Value::MemberIterator defaultAction = doc.FindMember("defaultAction");
 		if (defaultAction == doc.MemberEnd() || !defaultAction->value.IsString())
 		{
-			m_defaultRule = new IncludeRule();
+			m_defaultRule = new IncludeRule(m_instanceName);
 			m_logger->info("No default action found in the plugin rules");
 		}
 		else
 		{
-			string actionStr= defaultAction->value.GetString();
+			string actionStr = defaultAction->value.GetString();
 			for (auto & c: actionStr) c = tolower(c);
 			if (actionStr == "include")
-				m_defaultRule = new IncludeRule();
+				m_defaultRule = new IncludeRule(m_instanceName);
 			else if (actionStr == "exclude")
-				m_defaultRule = new ExcludeRule();
+				m_defaultRule = new ExcludeRule(m_instanceName);
 			else if (actionStr == "flatten")
-				m_defaultRule = new FlattenRule();
+				m_defaultRule = new FlattenRule(m_instanceName);
 			else
 				m_logger->error("The rule '%s' is not a valid default rule",
 						actionStr.c_str());
@@ -118,25 +119,25 @@ void AssetFilter::handleConfig(ConfigCategory& category)
 			string asset_name = (*iter)["asset_name"].GetString();
 			string action = (*iter)["action"].GetString();
 			if (action.compare("include") == 0)
-				m_rules.emplace_back(new IncludeRule(asset_name));
+				m_rules.emplace_back(new IncludeRule(m_instanceName, asset_name));
 			else if (action.compare("exclude") == 0)
-				m_rules.emplace_back(new ExcludeRule(asset_name));
+				m_rules.emplace_back(new ExcludeRule(m_instanceName, asset_name));
 			else if (action.compare("rename") == 0)
-				m_rules.emplace_back(new RenameRule(asset_name, *iter));
+				m_rules.emplace_back(new RenameRule(m_instanceName, asset_name, *iter));
 			else if (action.compare("datapointmap") == 0)
-				m_rules.emplace_back(new DatapointMapRule(asset_name, *iter));
+				m_rules.emplace_back(new DatapointMapRule(m_instanceName, asset_name, *iter));
 			else if (action.compare("remove") == 0)
-				m_rules.emplace_back(new RemoveRule(asset_name, *iter));
+				m_rules.emplace_back(new RemoveRule(m_instanceName, asset_name, *iter));
 			else if (action.compare("flatten") == 0)
-				m_rules.emplace_back(new FlattenRule(asset_name));
+				m_rules.emplace_back(new FlattenRule(m_instanceName, asset_name));
 			else if (action.compare("split") == 0)
-				m_rules.emplace_back(new SplitRule(asset_name, *iter));
+				m_rules.emplace_back(new SplitRule(m_instanceName, asset_name, *iter));
 			else if (action.compare("select") == 0)
-				m_rules.emplace_back(new SelectRule(asset_name, *iter));
+				m_rules.emplace_back(new SelectRule(m_instanceName, asset_name, *iter));
 			else if (action.compare("retain") == 0)
-				m_rules.emplace_back(new SelectRule(asset_name, *iter));
+				m_rules.emplace_back(new SelectRule(m_instanceName, asset_name, *iter));
 			else if (action.compare("nest") == 0)
-				m_rules.emplace_back(new NestRule(asset_name, *iter));
+				m_rules.emplace_back(new NestRule(m_instanceName, asset_name, *iter));
 			else
 				m_logger->error("Unrecognised action '%s'", action.c_str());
 		}
