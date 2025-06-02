@@ -183,7 +183,7 @@ RenameRule::RenameRule(const string& service, const string& asset, const Value& 
 	if (json.HasMember("new_asset_name") && json["new_asset_name"].IsString())
 	{
 		m_newName = json["new_asset_name"].GetString();
-		if (isRegexString(m_newName))
+		if (m_assetIsRegex && isRegexString(m_newName))
 		{
 			try {
 				m_newRegex = new regex(m_newName);
@@ -222,7 +222,7 @@ void RenameRule::execute(Reading *reading, vector<Reading *>& out)
 	{
 		reading->setAssetName(m_newName);
 	}
-	else
+	else if (m_asset_re)
 	{
 		string name = reading->getAssetName();
 		reading->setAssetName(regex_replace(name, *m_asset_re, m_newName));
