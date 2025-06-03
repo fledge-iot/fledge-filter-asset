@@ -31,6 +31,7 @@ static const char *renameTest = "{ \"rules\" : [ { \"asset_name\" : \"^Tank.*\",
 static const char *dpmapTest = "{ \"rules\" : [ { \"asset_name\" : \".*Camera$\", \"action\" : \"datapointmap\", \"map\" : { \"ISO\" : \"Light Sensitivity\" } } ] }";
 static const char *removeTest = "{ \"rules\" : [ { \"asset_name\" : \".*\", \"action\" : \"remove\", \"datapoint\" : \"value\" } ] }";
 static const char *removeTest2 = "{ \"rules\" : [ { \"asset_name\" : \".*\", \"action\" : \"remove\", \"datapoint\" : \".*scale\" } ] }";
+static const char *nonregexrenameTest = "{ \"rules\" : [ { \"asset_name\" : \"Pressure\", \"action\" : \"rename\", \"new_asset_name\" : \"aa?Ov*r[u1,4]\" } ] }";
 
 // Regular expression checked for
 // .*: Matches 0 or more occurrences
@@ -392,6 +393,40 @@ TEST(ASSET_REGEX, remove2)
 	ASSERT_STREQ(outdp->getName().c_str(), "value");
 	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
 	ASSERT_EQ(outdp->getData().toInt(), 1200);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
+}
+
+TEST(ASSET_REGEX, nonregexrename)
+{
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", nonregexrenameTest);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+
+	long testValue = 1000;
+	DatapointValue dpv(testValue);
+	Datapoint *value = new Datapoint("P1", dpv);
+	readings->push_back(new Reading("Pressure", value));
+
+	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+	vector<Reading *> results = outReadings->getAllReadings();
+	// Should still have 1 reading
+	ASSERT_EQ(results.size(), 1);  
+
+	Reading *out = results[0];
+	ASSERT_STREQ(out->getAssetName().c_str(), "aa?Ov*r[u1,4]");
 
 	delete outReadings;
 	plugin_shutdown(handle);
