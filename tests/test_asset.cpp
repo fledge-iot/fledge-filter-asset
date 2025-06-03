@@ -60,6 +60,8 @@ static const char *action_select_single_regex = "{ \"rules\" : [ { \"asset_name\
 static const char *action_select_type = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"select\" , \"type\": \"float\" } ] }";
 static const char *action_retain = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"retain\" , \"datapoints\": [ \"voltage\", \"current\"] } ] }";
 static const char *action_nest = "{ \"rules\" : [ { \"asset_name\" : \"test\", \"action\" : \"nest\" , \"nest\": { \"electrical\": [\"voltage\", \"current\", \"power\"], \"environmental\" : [ \"temperature\", \"humidity\" ] } } ] }";
+static const char *renameRegexTooFewTest = "{ \"rules\" : [ { \"asset_name\" : \"test([0-9]*)\", \"action\" : \"rename\", \"new_asset_name\" : \"new$1$2\" } ] }";
+static const char *renameRegexTooManyTest = "{ \"rules\" : [ { \"asset_name\" : \"test([0-9]*)([a-z]*)\", \"action\" : \"rename\", \"new_asset_name\" : \"new$1\" } ] }";
 
 
 TEST(ASSET, exclude)
@@ -162,6 +164,149 @@ TEST(ASSET, include)
 	delete config;
 }
 
+// Test renaming using a regex with too few bracketed expression
+TEST(ASSET, renameRegexTooFew)
+{
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", renameRegexTooFewTest);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+
+	long testValue = 1000;
+	DatapointValue dpv(testValue);
+	Datapoint *value = new Datapoint("test", dpv);
+	readings->push_back(new Reading("test12", value));
+
+	testValue = 1001;
+	DatapointValue dpv1(testValue);
+	Datapoint *value1 = new Datapoint("test", dpv1);
+	readings->push_back(new Reading("test12", value1));
+
+	testValue = 1140;
+	DatapointValue dpv2(testValue);
+	Datapoint *value2 = new Datapoint("test", dpv2);
+	readings->push_back(new Reading("test1", value2));
+
+	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+
+	vector<Reading *>results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 3);
+	Reading *out = results[0];
+	ASSERT_STREQ(out->getAssetName().c_str(), "new12");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	vector<Datapoint *> points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	Datapoint *outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "test");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1000);
+
+	out = results[1];
+	ASSERT_STREQ(out->getAssetName().c_str(), "new12");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "test");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1001);
+
+	out = results[2];
+	ASSERT_STREQ(out->getAssetName().c_str(), "new1");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "test");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1140);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
+}
+
+// Test renaming using a regex with too many bracketed expression
+TEST(ASSET, renameRegexTooMany)
+{
+	PLUGIN_INFORMATION *info = plugin_info();
+	ConfigCategory *config = new ConfigCategory("asset", info->config);
+	ASSERT_NE(config, (ConfigCategory *)NULL);
+	config->setItemsValueFromDefault();
+	ASSERT_EQ(config->itemExists("config"), true);
+	config->setValue("config", renameRegexTooManyTest);
+	config->setValue("enable", "true");
+	ReadingSet *outReadings;
+	void *handle = plugin_init(config, &outReadings, Handler);
+	vector<Reading *> *readings = new vector<Reading *>;
+
+	long testValue = 1000;
+	DatapointValue dpv(testValue);
+	Datapoint *value = new Datapoint("test", dpv);
+	readings->push_back(new Reading("test12", value));
+
+	testValue = 1001;
+	DatapointValue dpv1(testValue);
+	Datapoint *value1 = new Datapoint("test", dpv1);
+	readings->push_back(new Reading("test12", value1));
+
+	testValue = 1140;
+	DatapointValue dpv2(testValue);
+	Datapoint *value2 = new Datapoint("test", dpv2);
+	readings->push_back(new Reading("test1", value2));
+
+	ReadingSet *readingSet = new ReadingSet(readings);
+	delete readings;
+	plugin_ingest(handle, (READINGSET *)readingSet);
+
+
+	vector<Reading *>results = outReadings->getAllReadings();
+	ASSERT_EQ(results.size(), 3);
+	Reading *out = results[0];
+	ASSERT_STREQ(out->getAssetName().c_str(), "new12");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	vector<Datapoint *> points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	Datapoint *outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "test");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1000);
+
+	out = results[1];
+	ASSERT_STREQ(out->getAssetName().c_str(), "new12");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "test");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1001);
+
+	out = results[2];
+	ASSERT_STREQ(out->getAssetName().c_str(), "new1");
+	ASSERT_EQ(out->getDatapointCount(), 1);
+	points = out->getReadingData();
+	ASSERT_EQ(points.size(), 1);
+	outdp = points[0];
+	ASSERT_STREQ(outdp->getName().c_str(), "test");
+	ASSERT_EQ(outdp->getData().getType(), DatapointValue::T_INTEGER);
+	ASSERT_EQ(outdp->getData().toInt(), 1140);
+
+	delete outReadings;
+	plugin_shutdown(handle);
+	delete config;
+}
+
+// Test renaming using a regex with bracketed a expression
 TEST(ASSET, renameRegex)
 {
 	PLUGIN_INFORMATION *info = plugin_info();
