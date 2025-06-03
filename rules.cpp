@@ -27,7 +27,15 @@ Rule::Rule(const string& service, const string& asset) : m_asset(asset),
 	{
 		try {
 			m_asset_re = new regex(asset);
-			m_assetIsRegex = true;
+			if (m_asset_re)
+			{
+				m_assetIsRegex = true;
+			}
+			else
+			{
+				m_logger->error("Failed to parse regular expression for asset name '%s'.",
+					asset.c_str());
+			}
 		} catch (...) {
 			m_logger->error("Invalid regular expression for asset name '%s'.",
 					asset.c_str());
