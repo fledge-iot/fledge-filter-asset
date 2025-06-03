@@ -155,7 +155,12 @@ TEST(ASSET_EDGE_CASES, SpecialAssetNames)
 	delete config;
 }
 
-// Test multiple actions on same asset
+// Test multiple actions on same asset to ensure all actions are taken and
+// that the actions are taken in the correct order
+//
+// We rename the asset and then we do a datapoint map that is defined on
+// the renamed asset. This tests the ordering and that the rules are then correctly
+// applied using the new asset name
 TEST(ASSET_EDGE_CASES, MultipleActions)
 {
 	PLUGIN_INFORMATION *info = plugin_info();
