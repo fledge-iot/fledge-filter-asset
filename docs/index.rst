@@ -77,7 +77,7 @@ The rename rule takes an extra parameter which is the new name of the asset that
 
    {
        "asset_name"     : "pump417",
-       "action"         : "exclude",
+       "action"         : "rename",
        "new_asset_name" : "SlurryPump417"
    }
 
@@ -87,7 +87,7 @@ If the *asset_name* property is a regular expression then the rule can be used t
 
    {
        "asset_name"     : "pump([0-9]*)",
-       "action"         : "exclude",
+       "action"         : "rename",
        "new_asset_name" : "SlurryPump$1"
    }
 
