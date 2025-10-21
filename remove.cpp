@@ -28,10 +28,17 @@ RemoveRule::RemoveRule(const string& service, const string& asset, const rapidjs
 	if (json.HasMember("datapoint") && json["datapoint"].IsString())
 	{
 		string datapoint = json["datapoint"].GetString();
-		if (isRegexString(datapoint))
-			m_regex = new regex(datapoint);
-		else
-			m_datapoint = datapoint;
+		try
+		{
+			if (isRegexString(datapoint))
+				m_regex = new regex(datapoint);
+			else
+				m_datapoint = datapoint;
+		}
+		catch (...)
+		{
+			m_logger->error("Invalid regular expression for asset name '%s'.",asset.c_str());
+		}
 	}
 	else if (json.HasMember("type") && json["type"].IsString())
 	{
