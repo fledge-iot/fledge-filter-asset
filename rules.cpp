@@ -262,13 +262,20 @@ DatapointMapRule::DatapointMapRule(const string& service, const string& asset, c
 			if (mapit.value.IsString())
 			{
 				string newName = mapit.value.GetString();
-				if (isRegexString(origName))
+				try
 				{
-					m_dpRegexMap.insert(pair<regex *, string>(new regex(origName), newName));
+					if (isRegexString(origName))
+					{
+						m_dpRegexMap.insert(pair<regex *, string>(new regex(origName), newName));
+					}
+					else
+					{
+						m_dpMap.insert(pair<string, string>(origName, newName));
+					}
 				}
-				else
+				catch (...)
 				{
-					m_dpMap.insert(pair<string, string>(origName, newName));
+					m_logger->error("Invalid regular expression for asset name '%s'.",asset.c_str());
 				}
 			}
 			else
